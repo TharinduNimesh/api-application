@@ -1,0 +1,31 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: api-app
+    restart: unless-stopped
+    volumes:
+      - .:/var/www
+    ports:
+      - "9000:9000"
+    networks:
+      - api-network
+
+  db:
+    image: mongo:latest
+    container_name: api-db
+    restart: unless-stopped
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=${DB_USERNAME}
+      - MONGO_INITDB_ROOT_PASSWORD=${DB_PASSWORD}
+    ports:
+      - "27017:27017"
+    volumes:
+      - ./data:/data/db
+    networks:
+      - api-network
+
+networks:
+  api-network:
+    driver: bridge

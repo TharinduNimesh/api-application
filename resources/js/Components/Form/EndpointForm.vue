@@ -26,6 +26,7 @@ const addParameter = () => {
     newEndpoint.parameters.push({
         name: '',
         type: 'string',
+        location: 'query', // Add this
         required: true,
         description: ''
     });

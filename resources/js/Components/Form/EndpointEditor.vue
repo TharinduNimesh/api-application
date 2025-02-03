@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ApiEndpoint, ParameterLocation } from '@/types/api';
+import type { ApiEndpoint, ParameterLocation, ParameterType } from '@/types/api';
 import { ref, computed } from 'vue';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -29,17 +29,24 @@ const httpMethods = [
 ];
 
 const parameterTypes = [
-    { label: 'String', value: 'string' },
-    { label: 'Number', value: 'number' },
-    { label: 'Boolean', value: 'boolean' },
-    { label: 'Object', value: 'object' },
-    { label: 'Array', value: 'array' }
+    { label: 'String', value: 'string' as ParameterType },
+    { label: 'Number', value: 'number' as ParameterType },
+    { label: 'Boolean', value: 'boolean' as ParameterType },
+    { label: 'Object', value: 'object' as ParameterType },
+    { label: 'Array', value: 'array' as ParameterType }
 ];
 
-const newParameter = ref({
+const newParameter = ref<{
+    name: string;
+    type: ParameterType;
+    location: ParameterLocation;
+    required: boolean;
+    description: string;
+    defaultValue: string;
+}>({
     name: '',
     type: 'string',
-    location: 'query' as ParameterLocation,
+    location: 'query',
     required: true,
     description: '',
     defaultValue: ''

@@ -1,21 +1,23 @@
 <script setup lang="ts">
 import ApplicationLogo from '@/Components/ApplicationLogo.vue';
 import { Link } from '@inertiajs/vue3';
+import BlobBackground from '@/Components/Background/BlobBackground.vue';
 </script>
 
 <template>
-    <div
-        class="flex min-h-screen flex-col items-center bg-gray-100 pt-6 sm:justify-center sm:pt-0"
-    >
-        <div>
-            <Link href="/">
-                <ApplicationLogo class="h-20 w-20 fill-current text-gray-500" />
+    <div class="min-h-screen flex flex-col sm:justify-center items-center pt-6 sm:pt-0 bg-gray-100 relative">
+        <BlobBackground />
+        
+        <div class="relative z-10">
+            <Link href="/" class="flex items-center gap-3">
+                <ApplicationLogo class="w-20 h-20" />
+                <span class="text-2xl font-bold text-gray-800">
+                    <span class="text-orange-400">API</span>Forge
+                </span>
             </Link>
         </div>
 
-        <div
-            class="mt-6 w-full overflow-hidden bg-white px-6 py-4 shadow-md sm:max-w-md sm:rounded-lg"
-        >
+        <div class="w-full sm:max-w-md mt-6 px-6 py-4 bg-white/70 backdrop-blur-xl shadow-md overflow-hidden sm:rounded-lg relative z-10">
             <slot />
         </div>
     </div>

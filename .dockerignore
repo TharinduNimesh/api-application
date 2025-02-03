@@ -1,2 +1,13 @@
-node_modules
-vendor
+/node_modules
+/vendor
+/data
+.git
+.env
+.env.example
+.gitignore
+.gitattributes
+README.md
+storage/framework/cache/**
+storage/framework/sessions/**
+storage/framework/views/**
+storage/logs/**
