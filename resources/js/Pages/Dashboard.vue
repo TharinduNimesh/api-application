@@ -2,107 +2,54 @@
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
 import { Head } from "@inertiajs/vue3";
 import ApiCard from "@/Components/ApiCard.vue";
-import { ref, computed } from "vue";
+import { ref, computed, onMounted } from "vue";
 import ApiFilterBar from "@/Components/ApiFilterBar.vue";
 import Paginator from "primevue/paginator";
 import { Link, usePage } from "@inertiajs/vue3";
+import axios from 'axios';
+import { useToast } from "primevue/usetoast";
+import type { Api as ApiType } from '@/types/api';
 
-// Add these types at the top
+type SortableFields = keyof Pick<ApiType, 'name' | 'createdAt'>;
+
+// Update the interface to include specific sort fields
 interface ApiFilters {
   search: string;
-  type: "ALL" | "FREE" | "PAID";
-  sort: string;
+  type: "ALL" | ApiType['type'];
+  status: "ALL" | ApiType['status'];
+  sort: `${'-' | ''}${SortableFields}`;
 }
 
-interface Api {
-  id: string;
-  name: string;
-  description: string;
-  type: "FREE" | "PAID";
-  endpointCount: number;
-  createdAt: string;
-  [key: string]: string | number; // Add index signature
-}
+const apis = ref<ApiType[]>([]);
 
-// Cast apis array to proper type
-const apis = ref<Api[]>([
-  {
-    id: "1",
-    name: "User Management API",
-    description:
-      "Complete user management system with authentication and authorization.",
-    type: "PAID" as const,
-    endpointCount: 12,
-    createdAt: "2023-08-15",
-  },
-  {
-    id: "2",
-    name: "Weather API",
-    description: "Real-time weather data for locations worldwide.",
-    type: "FREE" as const,
-    endpointCount: 5,
-    createdAt: "2023-08-10",
-  },
-  {
-    id: "3",
-    name: "Payment Gateway API",
-    description:
-      "Secure payment processing with support for multiple payment providers and currencies.",
-    type: "PAID" as const,
-    endpointCount: 18,
-    createdAt: "2023-08-08",
-  },
-  {
-    id: "4",
-    name: "Email Service API",
-    description: "Comprehensive email sending and template management system.",
-    type: "FREE" as const,
-    endpointCount: 8,
-    createdAt: "2023-08-05",
-  },
-  {
-    id: "5",
-    name: "Authentication API",
-    description:
-      "Complete authentication system with OAuth2 and social login support.",
-    type: "PAID" as const,
-    endpointCount: 15,
-    createdAt: "2023-08-03",
-  },
-  {
-    id: "6",
-    name: "File Storage API",
-    description:
-      "Cloud storage solution with automatic backup and version control.",
-    type: "PAID" as const,
-    endpointCount: 10,
-    createdAt: "2023-08-01",
-  },
-  {
-    id: "7",
-    name: "Analytics API",
-    description:
-      "Real-time analytics and reporting system with customizable dashboards.",
-    type: "FREE" as const,
-    endpointCount: 12,
-    createdAt: "2023-07-28",
-  },
-  {
-    id: "8",
-    name: "Notification API",
-    description:
-      "Multi-channel notification system supporting push, SMS, and email.",
-    type: "FREE" as const,
-    endpointCount: 6,
-    createdAt: "2023-07-25",
-  },
-]);
+// Add loading state
+const loading = ref(true);
+
+// Add fetch function
+const fetchApis = async () => {
+  try {
+    loading.value = true;
+    const response = await axios.get(route('api.list'));
+    apis.value = response.data;
+  } catch (error) {
+    console.error('Error fetching APIs:', error);
+    // You might want to show an error toast here
+  } finally {
+    loading.value = false;
+  }
+};
+
+// Fetch APIs on component mount
+onMounted(() => {
+  fetchApis();
+});
 
 const page = usePage();
 // Update the filters ref
 const filters = ref<ApiFilters>({
   search: "",
   type: "ALL",
+  status: "ALL",
   sort: "name",
 });
 
@@ -122,14 +69,25 @@ const filteredApis = computed(() => {
         .includes(filters.value.search.toLowerCase());
       const matchesType =
         filters.value.type === "ALL" || api.type === filters.value.type;
-      return matchesSearch && matchesType;
+      const matchesStatus =
+        filters.value.status === "ALL" || api.status === filters.value.status;
+        
+      return matchesSearch && matchesType && matchesStatus;
     })
     .sort((a, b) => {
       const isDesc = filters.value.sort.startsWith("-");
-      const field = isDesc ? filters.value.sort.slice(1) : filters.value.sort;
+      const field = (isDesc ? filters.value.sort.slice(1) : filters.value.sort) as SortableFields;
       const direction = isDesc ? -1 : 1;
 
-      return a[field] > b[field] ? direction : -direction;
+      if (field === 'name') {
+        return a.name.localeCompare(b.name) * direction;
+      }
+      
+      if (field === 'createdAt') {
+        return (new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()) * direction;
+      }
+
+      return 0;
     });
 
   // Update total records for pagination
@@ -177,6 +135,33 @@ const showTrialBanner = computed(() => {
 const dismissTrial = () => {
   localStorage.setItem("trialDismissed", "true");
   isDismissed.value = true;
+};
+
+const hasApis = computed(() => apis.value.length > 0);
+const hasFilteredResults = computed(() => filteredApis.value.length > 0);
+const isAdmin = computed(() => page.props.auth.user.role === 'admin');
+
+const toast = useToast();
+
+const handleActivateApi = async (apiId: string) => {
+    try {
+        await axios.patch(route('api.activate', apiId));
+        await fetchApis(); // Refresh the list
+        toast.add({
+            severity: 'success',
+            summary: 'Success',
+            detail: 'API activated successfully',
+            life: 3000
+        });
+    } catch (error) {
+        console.error('Error activating API:', error);
+        toast.add({
+            severity: 'error',
+            summary: 'Error',
+            detail: 'Failed to activate API',
+            life: 3000
+        });
+    }
 };
 </script>
 
@@ -262,42 +247,112 @@ const dismissTrial = () => {
           <ApiFilterBar v-model="filters" />
         </div>
 
-        <!-- Results count -->
-        <div class="mb-4 flex items-center justify-between">
-          <p class="text-sm text-gray-500">
-            Showing
-            <span class="font-medium text-gray-900">
-              {{ pagination.first + 1 }} -
-              {{
-                Math.min(
-                  pagination.first + pagination.rows,
-                  pagination.totalRecords
-                )
-              }}
-            </span>
-            of
-            <span class="font-medium text-gray-900">
-              {{ pagination.totalRecords }}
-            </span>
-            APIs
-          </p>
+        <!-- Loading State -->
+        <div v-if="loading" class="flex justify-center items-center py-12">
+          <ProgressSpinner />
         </div>
 
-        <!-- API Grid -->
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
-          <ApiCard v-for="api in filteredApis" :key="api.id" v-bind="api" />
-        </div>
+        <template v-else>
+          <!-- Empty States -->
+          <div v-if="!hasApis" class="text-center py-12">
+            <div class="space-y-6">
+              <div class="flex justify-center">
+                <i class="pi pi-database text-4xl text-gray-400" />
+              </div>
+              <div class="space-y-2">
+                <h3 class="text-lg font-medium text-gray-900">No APIs Available</h3>
+                <p class="text-gray-500 max-w-sm mx-auto">
+                  {{ isAdmin 
+                    ? "Start by creating your first API to make it available to users."
+                    : "No APIs are currently available. Please check back later."
+                  }}
+                </p>
+              </div>
+              <div v-if="isAdmin">
+                <Button
+                  label="Create New API"
+                  icon="pi pi-plus"
+                  severity="primary"
+                  :link="true"
+                  :href="route('api.create')"
+                />
+              </div>
+            </div>
+          </div>
 
-        <!-- Pagination -->
-        <Paginator
-          v-if="pagination.totalRecords > pagination.rows"
-          v-model:first="pagination.first"
-          v-model:rows="pagination.rows"
-          :totalRecords="pagination.totalRecords"
-          :rowsPerPageOptions="[6, 12, 24, 48]"
-          @page="onPageChange"
-          class="border border-gray-100 rounded-lg bg-white"
-        />
+          <div v-else-if="!hasFilteredResults" class="text-center py-12">
+            <div class="space-y-6">
+              <div class="flex justify-center">
+                <i class="pi pi-filter-slash text-4xl text-gray-400" />
+              </div>
+              <div class="space-y-2">
+                <h3 class="text-lg font-medium text-gray-900">No Matching Results</h3>
+                <p class="text-gray-500 max-w-sm mx-auto">
+                  No APIs match your current filters. Try adjusting or clearing your filters.
+                </p>
+              </div>
+              <div>
+                <Button
+                  label="Clear All Filters"
+                  icon="pi pi-filter-slash"
+                  severity="secondary"
+                  text
+                  @click="filters = {
+                    search: '',
+                    type: 'ALL',
+                    status: 'ALL',
+                    sort: 'name'
+                  }"
+                />
+              </div>
+            </div>
+          </div>
+
+          <!-- Results Display -->
+          <template v-else>
+            <!-- Results count -->
+            <div class="mb-4 flex items-center justify-between">
+              <p class="text-sm text-gray-500">
+                Showing
+                <span class="font-medium text-gray-900">
+                  {{ pagination.first + 1 }} -
+                  {{
+                    Math.min(
+                      pagination.first + pagination.rows,
+                      pagination.totalRecords
+                    )
+                  }}
+                </span>
+                of
+                <span class="font-medium text-gray-900">
+                  {{ pagination.totalRecords }}
+                </span>
+                APIs
+              </p>
+            </div>
+
+            <!-- API Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
+              <ApiCard 
+                v-for="api in filteredApis" 
+                :key="api.id" 
+                v-bind="api" 
+                :onActivate="isAdmin ? handleActivateApi : undefined" 
+              />
+            </div>
+
+            <!-- Pagination -->
+            <Paginator
+              v-if="pagination.totalRecords > pagination.rows"
+              v-model:first="pagination.first"
+              v-model:rows="pagination.rows"
+              :totalRecords="pagination.totalRecords"
+              :rowsPerPageOptions="[6, 12, 24, 48]"
+              @page="onPageChange"
+              class="border border-gray-100 rounded-lg bg-white"
+            />
+          </template>
+        </template>
       </div>
     </div>
   </AuthenticatedLayout>

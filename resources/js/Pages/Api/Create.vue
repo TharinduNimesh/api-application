@@ -14,6 +14,7 @@ import { v4 as uuidv4 } from "uuid";
 import Dialog from "primevue/dialog";
 import { z } from "zod";
 import type { ApiEndpoint, CreateApi } from "@/types/api";
+import axios from "axios";
 
 const form = ref<CreateApi>({
   name: "",
@@ -48,32 +49,34 @@ const handleSubmit = async () => {
     processing.value = true;
     const validatedData = CreateApiSchema.parse(form.value);
 
-    router.post("/apis", validatedData, {
-      onSuccess: () => {
-        processing.value = false;
-        toast.add({
-          severity: "success",
-          summary: "Success",
-          detail: "API created successfully",
-          life: 3000,
-        });
-      },
-      onError: (err) => {
-        processing.value = false;
-        errors.value = err;
-        toast.add({
-          severity: "error",
-          summary: "Error",
-          detail: "Please check the form for errors",
-          life: 3000,
-        });
-      },
+    const response = await axios.post('/api/apis', validatedData);
+    
+    processing.value = false;
+    toast.add({
+      severity: "success",
+      summary: "Success", 
+      detail: "API created successfully",
+      life: 3000,
     });
+    
+    // Redirect to dashboard after success
+    router.visit(route('dashboard'));
+
   } catch (err) {
     processing.value = false;
+    
     if (err instanceof z.ZodError) {
       err.errors.forEach((error: z.ZodIssue) => {
         errors.value[error.path.join(".")] = error.message;
+      });
+    } else if (axios.isAxiosError(err)) {
+      // Handle API errors
+      errors.value = err.response?.data?.errors || {};
+      toast.add({
+        severity: "error",
+        summary: "Error",
+        detail: "Please check the form for errors",
+        life: 3000,
       });
     }
   }

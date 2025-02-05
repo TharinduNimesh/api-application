@@ -3,6 +3,7 @@ import { z } from 'zod';
 export type ParameterLocation = 'query' | 'path' | 'body' | 'header';
 export type ParameterType = 'string' | 'number' | 'boolean' | 'object' | 'array';
 export type ApiType = 'FREE' | 'PAID';
+export type ApiStatus = 'ACTIVE' | 'INACTIVE';
 
 export interface Parameter {
     id?: string;
@@ -30,6 +31,16 @@ export interface CreateApi {
     baseUrl: string;
     rateLimit: number;
     endpoints: ApiEndpoint[];
+}
+
+export interface Api {
+    id: string;
+    name: string;
+    description: string;
+    type: ApiType;
+    status: ApiStatus;
+    endpointCount: number;
+    createdAt: string;
 }
 
 // Zod schema for validation

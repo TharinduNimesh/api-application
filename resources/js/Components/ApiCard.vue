@@ -1,24 +1,55 @@
 <script setup lang="ts">
-import { Link } from '@inertiajs/vue3';
+import { Link, usePage } from '@inertiajs/vue3';
+import { computed } from 'vue';
 
 interface ApiProps {
     name: string;
     description: string;
     type: "FREE" | "PAID";
+    status: "ACTIVE" | "INACTIVE";
     endpointCount: number;
     createdAt: string;
     id: string;
+    onActivate?: (id: string) => void;
 }
 
-defineProps<ApiProps>();
+const props = defineProps<ApiProps>();
+const page = usePage();
+const isAdmin = computed(() => page.props.auth.user.role === 'admin');
 
 const truncateText = (text: string, length: number = 120) => {
     return text.length > length ? text.substring(0, length) + '...' : text;
 };
+
+const statusBadgeClass = computed(() => {
+    if (props.status === 'INACTIVE') {
+        return 'bg-gray-50 text-gray-600 border border-gray-200';
+    }
+    return props.type === 'PAID' 
+        ? 'bg-amber-50 text-amber-700 border border-amber-200'
+        : 'bg-emerald-50 text-emerald-700 border border-emerald-200';
+});
+
+const displayStatus = computed(() => 
+    props.status === 'INACTIVE' ? 'INACTIVE' : props.type
+);
+
+const cardClass = computed(() => ({
+    'opacity-75': props.status === 'INACTIVE'
+}));
+
+const handleActivate = () => {
+    if (props.onActivate) {
+        props.onActivate(props.id);
+    }
+};
 </script>
 
 <template>
-    <div class="relative flex flex-col min-h-[320px] bg-white border border-gray-100 rounded-xl transition-all duration-200 hover:shadow-lg hover:border-gray-200 hover:-translate-y-1">
+    <div 
+        class="relative flex flex-col min-h-[320px] bg-white border border-gray-100 rounded-xl transition-all duration-200 hover:shadow-lg hover:border-gray-200 hover:-translate-y-1"
+        :class="cardClass"
+    >
         <!-- Header -->
         <div class="flex items-center justify-between p-6 border-b border-gray-50">
             <h3 class="text-xl font-semibold text-gray-900 truncate pr-3 flex-1">
@@ -27,12 +58,10 @@ const truncateText = (text: string, length: number = 120) => {
             <span 
                 :class="[
                     'px-3 py-1 text-sm font-medium rounded-full shrink-0',
-                    type === 'PAID' 
-                        ? 'bg-amber-50 text-amber-700 border border-amber-200'
-                        : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                    statusBadgeClass
                 ]"
             >
-                {{ type }}
+                {{ displayStatus }}
             </span>
         </div>
 
@@ -74,16 +103,28 @@ const truncateText = (text: string, length: number = 120) => {
 
                 <!-- Action buttons -->
                 <div class="flex gap-2">
-                    <Button 
-                        :link="true"
-                        :href="`/api/${id}/use`"
-                        severity="primary"
-                        size="small"
-                        class="gap-2"
-                    >
-                        Use API
-                        <i class="pi pi-arrow-right" />
-                    </Button>
+                    <template v-if="status === 'INACTIVE' && isAdmin">
+                        <Button 
+                            icon="pi pi-check"
+                            label="Activate"
+                            severity="success"
+                            size="small"
+                            @click="handleActivate"
+                        />
+                    </template>
+                    <template v-else>
+                        <Button 
+                            :link="true"
+                            :href="`/api/${id}/use`"
+                            severity="primary"
+                            size="small"
+                            class="gap-2"
+                            :disabled="status === 'INACTIVE'"
+                        >
+                            Use API
+                            <i class="pi pi-arrow-right" />
+                        </Button>
+                    </template>
                 </div>
             </div>
         </div>
