@@ -6,6 +6,7 @@ use App\Models\Api;
 use App\Http\Requests\CreateApiRequest;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 
 class ApiController extends Controller
 {
@@ -15,6 +16,7 @@ class ApiController extends Controller
 
         $api = Api::create([
             ...$validated,
+            'is_active' => true,
             'created_by' => Auth::id(),
         ]);
 
@@ -55,6 +57,40 @@ class ApiController extends Controller
         });
 
         return response()->json($apis);
+    }
+
+    public function show(Api $api)
+    {
+        $api->load(['createdBy', 'endpoints.parameters']);
+
+        $apiData = [
+            'id' => $api->_id,
+            'name' => $api->name,
+            'description' => $api->description,
+            'type' => $api->type,
+            'status' => $api->is_active ? 'ACTIVE' : 'INACTIVE',
+            'baseUrl' => $api->baseUrl,
+            'rateLimit' => $api->rateLimit,
+            'createdAt' => $api->created_at->toISOString(),
+            'endpoints' => $api->endpoints->map(function($endpoint) {
+                return [
+                    'id' => $endpoint->_id,
+                    'method' => $endpoint->method,
+                    'name' => $endpoint->name,
+                    'path' => $endpoint->path,
+                    'description' => $endpoint->description,
+                    'parameters' => $endpoint->parameters
+                ];
+            }),
+            'createdBy' => [
+                'name' => $api->createdBy->name,
+                'email' => $api->createdBy->email,
+            ]
+        ];
+
+        return Inertia::render('Api/Show', [
+            'api' => $apiData
+        ]);
     }
 
     public function activate(Api $api)

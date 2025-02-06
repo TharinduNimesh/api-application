@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Link, usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
+import { router } from '@inertiajs/vue3';
 
 interface ApiProps {
     name: string;
@@ -43,12 +44,22 @@ const handleActivate = () => {
         props.onActivate(props.id);
     }
 };
+
+const navigateToApi = () => {
+    router.visit(route('api.show', props.id));
+};
+
+const handleAction = (e: Event) => {
+    // Prevent card click when clicking action buttons
+    e.stopPropagation();
+};
 </script>
 
 <template>
     <div 
-        class="relative flex flex-col min-h-[320px] bg-white border border-gray-100 rounded-xl transition-all duration-200 hover:shadow-lg hover:border-gray-200 hover:-translate-y-1"
+        class="relative flex flex-col min-h-[320px] bg-white border border-gray-100 rounded-xl transition-all duration-200 hover:shadow-lg hover:border-gray-200 hover:-translate-y-1 cursor-pointer"
         :class="cardClass"
+        @click="navigateToApi"
     >
         <!-- Header -->
         <div class="flex items-center justify-between p-6 border-b border-gray-50">
@@ -84,7 +95,7 @@ const handleActivate = () => {
 
         <!-- Footer -->
         <div class="mt-auto p-6 pt-4 border-t border-gray-50">
-            <div class="flex items-center justify-between">
+            <div class="flex items-center justify-between" @click="handleAction">
                 <!-- Utility buttons -->
                 <div class="flex gap-1">
                     <button
@@ -114,12 +125,11 @@ const handleActivate = () => {
                     </template>
                     <template v-else>
                         <Button 
-                            :link="true"
-                            :href="`/api/${id}/use`"
                             severity="primary"
                             size="small"
                             class="gap-2"
                             :disabled="status === 'INACTIVE'"
+                            @click="navigateToApi"
                         >
                             Use API
                             <i class="pi pi-arrow-right" />

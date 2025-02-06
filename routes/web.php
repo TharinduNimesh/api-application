@@ -42,6 +42,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
                 Route::post('/apis', [ApiController::class, 'create'])->name('store');
                 Route::patch('/{api}/activate', [ApiController::class, 'activate'])->name('activate');
             });
+            Route::get('/{api}', [ApiController::class, 'show'])->name('show');
         });
 });
 

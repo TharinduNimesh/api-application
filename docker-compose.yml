@@ -3,18 +3,18 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: api-app
+    container_name: laravel-app
     restart: unless-stopped
     volumes:
       - .:/var/www
     ports:
-      - "9000:9000"
+      - "8080:80"
     networks:
       - api-network
 
   db:
     image: mongo:latest
-    container_name: api-db
+    container_name: laravel-db
     restart: unless-stopped
     environment:
       - MONGO_INITDB_ROOT_USERNAME=${DB_USERNAME}

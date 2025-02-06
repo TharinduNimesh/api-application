@@ -3,7 +3,8 @@
 namespace App\Models;
 
 use MongoDB\Laravel\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\HasMany;
+use MongoDB\Laravel\Relations\BelongsTo;
+use MongoDB\Laravel\Relations\HasMany;
 
 class Api extends Model
 {
@@ -26,5 +27,10 @@ class Api extends Model
     public function endpoints(): HasMany
     {
         return $this->hasMany(Endpoint::class);
+    }
+
+    public function createdBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by');
     }
 }

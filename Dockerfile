@@ -1,73 +1,59 @@
-FROM php:8.3-fpm-alpine
+FROM php:8.3-apache
 
-# Add system dependencies
-RUN apk add --no-cache \
-    linux-headers \
-    bash \
-    shadow \
+# Install system dependencies and PHP extensions
+RUN apt-get update && apt-get install -y \
     git \
-    gcc \
-    g++ \
-    make \
-    autoconf \
-    openssl \
-    libzip-dev \
     zip \
     unzip \
-    nodejs \
-    npm
-
-# Install PHP extensions
-RUN docker-php-ext-install pdo_mysql bcmath zip pcntl \
+    libzip-dev \
+    curl \
+    libcurl4-openssl-dev \
+    pkg-config \
+    libssl-dev \
+    && docker-php-ext-install pdo_mysql bcmath zip pcntl \
     && pecl install mongodb \
-    && docker-php-ext-enable mongodb
+    && docker-php-ext-enable mongodb \
+    && curl -fsSL https://deb.nodesource.com/setup_lts.x | bash - \
+    && apt-get install -y nodejs
 
-# Install Node.js and npm
-RUN apk add --no-cache nodejs npm
-RUN npm install -g npm@latest
-
-# Install composer
+# Install Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
 # Set working directory
 WORKDIR /var/www
 
-# Copy composer files
+# Copy composer files and install dependencies
 COPY composer*.json ./
 COPY composer.lock ./
-
-# Install composer dependencies
 RUN composer install --no-scripts --no-autoloader
 
-# Copy package.json files
+# Copy package files and install npm dependencies
 COPY package*.json ./
-
-# Install npm dependencies
 RUN npm install
 
 # Copy project files
 COPY . .
 
-# Generate composer autoload files
+# Optimize autoload
 RUN composer dump-autoload --optimize
 
-# Build frontend assets
-RUN npm run build
+# Create non-root user 'laravel' and change ownership of the application folder
+RUN useradd --create-home --uid 1000 laravel \
+    && chown -R laravel:laravel /var/www
 
-# Create system user
-RUN useradd -G www-data,root -u 1000 -d /home/dev dev
-RUN mkdir -p /home/dev/.composer && \
-    chown -R dev:dev /home/dev
+# Set proper permissions for storage and bootstrap cache (and public if needed)
+RUN chown -R laravel:laravel /var/www/storage /var/www/bootstrap/cache /var/www/public \
+    && chmod -R 775 /var/www/storage /var/www/bootstrap/cache /var/www/public
 
-# Set proper permissions
-RUN chown -R dev:dev /var/www
-RUN chmod -R 755 /var/www/storage
+# Copy Apache virtual host configuration
+COPY docker/apache/000-default.conf /etc/apache2/sites-available/000-default.conf
 
-# Switch to non-root user
-USER dev
+# Enable Apache rewrite module (requires root)
+RUN a2enmod rewrite
 
-# Expose port 9000
-EXPOSE 8000
+# Switch to non-root user 'laravel'
+USER laravel
 
-# Start PHP-FPM
-CMD ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8000"]
+EXPOSE 80
+
+CMD ["apache2-foreground"]

@@ -6,6 +6,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use MongoDB\Laravel\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use MongoDB\Laravel\Relations\HasMany;
 
 class User extends Authenticatable
 {
@@ -39,6 +40,10 @@ class User extends Authenticatable
         return $this->role === 'admin';
     }
 
+    public function apis(): HasMany
+    {
+        return $this->hasMany(Api::class, 'created_by');
+    }
 
     /**
      * Get the attributes that should be cast.
