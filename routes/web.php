@@ -43,6 +43,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
                 Route::patch('/{api}/activate', [ApiController::class, 'activate'])->name('activate');
             });
             Route::get('/{api}', [ApiController::class, 'show'])->name('show');
+            
+            // New route to call external endpoints via the backend
+            Route::post('/{api}/call-endpoint', [ApiController::class, 'callEndpoint'])->name('call-endpoint');
         });
 });
 

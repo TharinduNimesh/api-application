@@ -1,5 +1,6 @@
 <script setup>
 import { ref } from 'vue';
+import { usePage } from '@inertiajs/vue3';
 import axios from 'axios';
 import Drawer from 'primevue/drawer';
 import Button from 'primevue/button';
@@ -36,6 +37,10 @@ const parseJsonSafely = (value) => {
   }
 };
 
+const page = usePage();
+const apiId = page.props.api.id; // current API id from the show page
+
+// Modify sendRequest method to call the backend route instead of the external API directly
 const sendRequest = async () => {
   loading.value = true;
   error.value = null;
@@ -51,19 +56,12 @@ const sendRequest = async () => {
       });
     }
 
-    const config = {
-      method: props.endpoint.method,
-      url: props.endpoint.path,
-      headers: { 'Content-Type': 'application/json' }
-    };
+    // Call our backend route with API id and endpoint id
+    const result = await axios.post(route('api.call-endpoint', apiId), {
+      endpoint_id: props.endpoint.id,
+      data: processedData
+    });
 
-    if (['POST', 'PUT', 'PATCH'].includes(props.endpoint.method)) {
-      config.data = processedData;
-    } else if (props.endpoint.method === 'GET') {
-      config.params = processedData;
-    }
-
-    const result = await axios(config);
     response.value = result.data;
     activeTab.value = 1; // Switch to response tab
   } catch (err) {

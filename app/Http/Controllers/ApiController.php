@@ -7,6 +7,7 @@ use App\Http\Requests\CreateApiRequest;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
+use GuzzleHttp\Client; // make sure to install guzzlehttp/guzzle via Composer
 
 class ApiController extends Controller
 {
@@ -97,5 +98,63 @@ class ApiController extends Controller
     {
         $api->update(['is_active' => true]);
         return response()->json(['message' => 'API activated successfully']);
+    }
+
+    // New method to call external API endpoints
+    public function callEndpoint(Request $request, Api $api)
+    {
+        $request->validate([
+            'endpoint_id' => 'required|string',
+            'data' => 'nullable|array'
+        ]);
+
+        $endpointId = $request->input('endpoint_id');
+        $data = $request->input('data', []);
+
+        // Retrieve the endpoint associated with the API and load its parameters
+        $endpoint = $api->endpoints()->where('_id', $endpointId)->first();
+        if (!$endpoint) {
+            return response()->json(['error' => 'Endpoint not found'], 404);
+        }
+
+        // Replace path parameters placeholders with actual data
+        $path = $endpoint->path;
+        // Ensure parameters relationship is loaded
+        $endpoint->load('parameters');
+        foreach ($endpoint->parameters as $param) {
+            // Check if parameter location is "path"
+            if (isset($param->location) && $param->location === 'path') {
+                if (!isset($data[$param->name])) {
+                    return response()->json(['error' => "Missing path parameter: {$param->name}"], 422);
+                }
+                // replace placeholder e.g. {id} with actual value
+                $path = str_replace('{' . $param->name . '}', $data[$param->name], $path);
+                // Remove the path parameter from data to avoid sending it as query/json
+                unset($data[$param->name]);
+            }
+        }
+
+        // Construct the full external URL
+        $url = rtrim($api->baseUrl, '/') . '/' . ltrim($path, '/');
+
+        $client = new Client();
+        try {
+            $options = [];
+            if (in_array($endpoint->method, ['POST', 'PUT', 'PATCH'])) {
+                $options['json'] = $data;
+            } elseif ($endpoint->method === 'GET') {
+                $options['query'] = $data;
+            }
+            $response = $client->request($endpoint->method, $url, $options);
+            $content = $response->getBody()->getContents();
+
+            $decoded = json_decode($content, true);
+            return response()->json([
+                'status' => $response->getStatusCode(),
+                'data' => $decoded ?? $content,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
     }
 }
