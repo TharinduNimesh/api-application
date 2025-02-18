@@ -269,13 +269,14 @@ const handleActivateApi = async (apiId: string) => {
                 </p>
               </div>
               <div v-if="isAdmin">
-                <Button
-                  label="Create New API"
-                  icon="pi pi-plus"
-                  severity="primary"
-                  :link="true"
-                  :href="route('api.create')"
-                />
+                <Link :href="route('api.create')">
+                  <Button
+                    label="Create New API"
+                    icon="pi pi-plus"
+                    severity="primary"
+                    :link="true"
+                  />
+                </Link>
               </div>
             </div>
           </div>

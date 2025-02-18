@@ -1,46 +1,41 @@
 import { z } from 'zod';
 
-export type ParameterLocation = 'query' | 'path' | 'body' | 'header';
-export type ParameterType = 'string' | 'number' | 'boolean' | 'object' | 'array';
 export type ApiType = 'FREE' | 'PAID';
 export type ApiStatus = 'ACTIVE' | 'INACTIVE';
+export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
 
 export interface Parameter {
-    id?: string;
-    name: string;
-    type: ParameterType;
-    location: ParameterLocation;
-    required: boolean;
-    description: string;
-    defaultValue?: string;
+  name: string;
+  type: string;
+  required: boolean;
+  description: string;
 }
 
-export interface ApiEndpoint {
-    id?: string;
-    name: string;
-    method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
-    path: string;
-    description: string;
-    parameters: Parameter[];
+export interface Endpoint {
+  id: string;
+  method: HttpMethod;
+  name: string;
+  path: string;
+  description: string;
+  parameters?: Parameter[];
 }
 
-export interface CreateApi {
-    name: string;
-    description: string;
-    type: ApiType;
-    baseUrl: string;
-    rateLimit: number;
-    endpoints: ApiEndpoint[];
+export interface User {
+  name: string;
+  email: string;
 }
 
 export interface Api {
-    id: string;
-    name: string;
-    description: string;
-    type: ApiType;
-    status: ApiStatus;
-    endpointCount: number;
-    createdAt: string;
+  id: string;
+  name: string;
+  description: string;
+  type: ApiType;
+  status: ApiStatus;
+  baseUrl: string;
+  rateLimit: number;
+  createdAt: string;
+  endpoints: Endpoint[];
+  createdBy?: User;
 }
 
 // Zod schema for validation

@@ -24,6 +24,7 @@
     "dependencies": {
         "@primevue/themes": "^4.2.5",
         "@tailwindcss/vite": "^4.0.3",
+        "chart.js": "^4.4.7",
         "primeicons": "^7.0.0",
         "primevue": "^4.2.5",
         "uuid": "^11.0.5",
