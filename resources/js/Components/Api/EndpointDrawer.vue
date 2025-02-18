@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
 import { usePage } from '@inertiajs/vue3';
 import axios from 'axios';
 import Drawer from 'primevue/drawer';
@@ -70,6 +70,19 @@ const sendRequest = async () => {
     loading.value = false;
   }
 };
+
+// Reset state when drawer visibility changes
+watch(() => props.visible, (newValue) => {
+  if (newValue) {
+    // Reset when drawer opens
+    response.value = null;
+    error.value = null;
+    activeTab.value = 0; // Select Request tab
+  } else {
+    // Reset when drawer closes
+    requestData.value = {};
+  }
+});
 
 const handleClose = (closeCallback) => {
   emit('update:visible', false);
