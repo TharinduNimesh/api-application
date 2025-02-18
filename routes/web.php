@@ -40,7 +40,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
                     return Inertia::render('Api/Create');
                 })->name('create');
                 Route::post('/apis', [ApiController::class, 'create'])->name('store');
+                Route::patch('/{api}/archive', [ApiController::class, 'archive'])->name('archive');
                 Route::patch('/{api}/activate', [ApiController::class, 'activate'])->name('activate');
+                Route::delete('/{api}', [ApiController::class, 'destroy'])->name('destroy');
+                Route::delete('/{api}/endpoints/{endpoint}', [ApiController::class, 'deleteEndpoint'])
+                    ->name('endpoints.delete');
             });
             Route::get('/{api}', [ApiController::class, 'show'])->name('show');
             

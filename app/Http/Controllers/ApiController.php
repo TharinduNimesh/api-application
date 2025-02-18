@@ -70,7 +70,6 @@ class ApiController extends Controller
             'description' => $api->description,
             'type' => $api->type,
             'status' => $api->is_active ? 'ACTIVE' : 'INACTIVE',
-            'baseUrl' => $api->baseUrl,
             'rateLimit' => $api->rateLimit,
             'createdAt' => $api->created_at->toISOString(),
             'endpoints' => $api->endpoints->map(function($endpoint) {
@@ -155,6 +154,75 @@ class ApiController extends Controller
             ]);
         } catch (\Exception $e) {
             return response()->json(['error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Archive (deactivate) an API
+     */
+    public function archive(Api $api)
+    {
+        // Check if API is already archived
+        if (!$api->is_active) {
+            return response()->json([
+                'message' => 'API is already archived'
+            ], 422);
+        }
+
+        $api->update(['is_active' => false]);
+
+        return response()->json([
+            'message' => 'API archived successfully',
+            'status' => 'success'
+        ]);
+    }
+
+    /**
+     * Delete an API and all its associated endpoints and parameters
+     */
+    public function destroy(Api $api)
+    {
+        // Delete all associated endpoints and their parameters
+        foreach ($api->endpoints as $endpoint) {
+            $endpoint->parameters()->delete();
+            $endpoint->delete();
+        }
+        
+        // Delete any associated usage records
+        // $api->usage()->delete();
+        
+        // Delete the API
+        $api->delete();
+
+        return response()->json([
+            'message' => 'API deleted successfully',
+            'status' => 'success'
+        ]);
+    }
+
+    /**
+     * Delete a specific endpoint and its parameters
+     */
+    public function deleteEndpoint(Api $api, string $endpoint)
+    {
+        try {
+            $endpoint = $api->endpoints()->where('_id', $endpoint)->firstOrFail();
+            
+            // Delete parameters first
+            $endpoint->parameters()->delete();
+            
+            // Delete the endpoint
+            $endpoint->delete();
+            
+            return response()->json([
+                'message' => 'Endpoint deleted successfully',
+                'status' => 'success'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Error deleting endpoint',
+                'error' => $e->getMessage()
+            ], 500);
         }
     }
 }

@@ -57,7 +57,10 @@ const handleBack = () => {
               </div>
             </TabPanel>
             <TabPanel value="1">
-              <ApiEndpoints :endpoints="api.endpoints" />
+              <ApiEndpoints 
+                :endpoints="api.endpoints" 
+                :apiId="api.id"
+              />
             </TabPanel>
           </TabPanels>
         </Tabs>

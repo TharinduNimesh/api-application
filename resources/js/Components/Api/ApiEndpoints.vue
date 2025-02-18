@@ -7,17 +7,28 @@ import Tag from 'primevue/tag';
 import ProgressSpinner from 'primevue/progressspinner';
 import EndpointDrawer from './EndpointDrawer.vue';
 import { ref } from 'vue';
+import axios from 'axios';
+import Dialog from 'primevue/dialog';
+import { usePage } from '@inertiajs/vue3';
 
 const props = defineProps({
   endpoints: {
     type: Array,
     required: true
+  },
+  apiId: {
+    type: String,
+    required: true
   }
 });
 
+const page = usePage();
 const expandedRows = ref({});
 const drawerVisible = ref(false);
 const selectedEndpoint = ref(null);
+
+// Convert endpoints to ref for reactivity
+const localEndpoints = ref([...props.endpoints]);
 
 const getMethodSeverity = (method) => {
   const severities = {
@@ -34,6 +45,37 @@ const openDrawer = (endpoint) => {
   selectedEndpoint.value = endpoint;
   drawerVisible.value = true;
 };
+
+// Delete endpoint functionality
+const showDeleteModal = ref(false);
+const selectedEndpointForDelete = ref(null);
+const deleteLoading = ref(false);
+
+const confirmDelete = (endpoint) => {
+  selectedEndpointForDelete.value = endpoint;
+  showDeleteModal.value = true;
+};
+
+const handleDelete = async () => {
+  try {
+    deleteLoading.value = true;
+    await axios.delete(route('api.endpoints.delete', {
+      api: props.apiId,
+      endpoint: selectedEndpointForDelete.value.id
+    }));
+    
+    // Update local state by removing the deleted endpoint
+    localEndpoints.value = localEndpoints.value.filter(
+      endpoint => endpoint.id !== selectedEndpointForDelete.value.id
+    );
+    
+    showDeleteModal.value = false;
+  } catch (error) {
+    console.error('Error deleting endpoint:', error);
+  } finally {
+    deleteLoading.value = false;
+  }
+};
 </script>
 
 <template>
@@ -46,7 +88,7 @@ const openDrawer = (endpoint) => {
     </template>
     <template #content>
       <DataTable
-        :value="endpoints"
+        :value="localEndpoints"
         :expandedRows="expandedRows"
         v-model:expandedRows="expandedRows"
         dataKey="id"
@@ -97,16 +139,31 @@ const openDrawer = (endpoint) => {
           </template>
         </Column>
 
-        <Column style="width: 4rem">
+        <Column style="width: 6rem">
           <template #body="{ data }">
-            <Button
-              icon="pi pi-code"
-              text
-              rounded
-              @click="openDrawer(data)"
-              class="p-1"
-              v-tooltip.top="'Test Endpoint'"
-            />
+            <div class="flex gap-1">
+              <Button
+                icon="pi pi-code"
+                text
+                rounded
+                @click="openDrawer(data)"
+                class="p-1"
+                v-tooltip.top="'Test Endpoint'"
+              />
+              
+              <!-- Admin-only actions -->
+              <template v-if="$page.props.auth.user.role === 'admin'">
+                <Button
+                  icon="pi pi-trash"
+                  text
+                  rounded
+                  severity="danger"
+                  class="p-1"
+                  v-tooltip.top="'Delete Endpoint'"
+                  @click.stop="confirmDelete(data)"
+                />
+              </template>
+            </div>
           </template>
         </Column>
 
@@ -157,6 +214,39 @@ const openDrawer = (endpoint) => {
     v-model:visible="drawerVisible"
     :endpoint="selectedEndpoint"
   />
+
+  <Dialog
+    v-model:visible="showDeleteModal"
+    modal
+    header="Delete Endpoint"
+    :style="{ width: '450px' }"
+    :closable="!deleteLoading"
+  >
+    <p class="my-4">
+      Are you sure you want to delete this endpoint? This action cannot be undone.
+    </p>
+    <p class="text-sm text-gray-500 mt-2">
+      <strong>Method:</strong> {{ selectedEndpointForDelete?.method }}
+      <br>
+      <strong>Path:</strong> {{ selectedEndpointForDelete?.path }}
+    </p>
+    <template #footer>
+      <Button
+        label="Cancel"
+        icon="pi pi-times"
+        text
+        @click="showDeleteModal = false"
+        :disabled="deleteLoading"
+      />
+      <Button
+        label="Delete"
+        icon="pi pi-trash"
+        severity="danger"
+        @click="handleDelete"
+        :loading="deleteLoading"
+      />
+    </template>
+  </Dialog>
 </template>
 
 <style scoped>
@@ -166,5 +256,39 @@ const openDrawer = (endpoint) => {
 
 .p-datatable .p-datatable-tbody > tr.p-highlight {
   background-color: #f3f4f6;
+}
+
+/* Add styles for action buttons */
+:deep(.p-button.p-button-text) {
+  padding: 0.5rem;
+  width: 2rem;
+  height: 2rem;
+}
+
+:deep(.p-button.p-button-text:hover) {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+:deep(.p-button.p-button-text.p-button-danger:hover) {
+  background: rgb(254 242 242);
+}
+
+/* Dialog styles */
+:deep(.p-dialog-header) {
+  padding: 1.5rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+:deep(.p-dialog-content) {
+  padding: 1.5rem;
+}
+
+:deep(.p-dialog-footer) {
+  padding: 1.5rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+:deep(.p-dialog .p-button) {
+  min-width: 100px;
 }
 </style>
