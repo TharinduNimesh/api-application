@@ -13,7 +13,7 @@ import { v4 as uuidv4 } from "uuid";
 // Add Dialog import
 import Dialog from "primevue/dialog";
 import { z } from "zod";
-import type { ApiEndpoint, CreateApi } from "@/types/api";
+import type { Endpoint, CreateApi } from "@/types/api";
 import axios from "axios";
 
 const form = ref<CreateApi>({
@@ -83,7 +83,7 @@ const handleSubmit = async () => {
 };
 
 const showEndpointEditor = ref(false);
-const currentEndpoint = ref<ApiEndpoint>({
+const currentEndpoint = ref<Endpoint>({
   id: "",
   name: "",
   method: "GET",
@@ -105,7 +105,7 @@ const handleAddEndpoint = () => {
   showEndpointEditor.value = true;
 };
 
-const handleEditEndpoint = (endpoint: ApiEndpoint) => {
+const handleEditEndpoint = (endpoint: Endpoint) => {
   currentEndpoint.value = { ...endpoint };
   editingEndpointId.value = endpoint.id || null;
   showEndpointEditor.value = true;
@@ -113,7 +113,7 @@ const handleEditEndpoint = (endpoint: ApiEndpoint) => {
 
 const handleDeleteEndpoint = (endpointId: string) => {
   form.value.endpoints = form.value.endpoints.filter(
-    (e) => e.id !== endpointId
+    (e: Endpoint) => e.id !== endpointId
   );
 };
 
@@ -121,7 +121,7 @@ const handleSaveEndpoint = () => {
   if (editingEndpointId.value) {
     // Update existing endpoint
     const index = form.value.endpoints.findIndex(
-      (e) => e.id === editingEndpointId.value
+      (e: Endpoint) => e.id === editingEndpointId.value
     );
     if (index !== -1) {
       form.value.endpoints[index] = { ...currentEndpoint.value };

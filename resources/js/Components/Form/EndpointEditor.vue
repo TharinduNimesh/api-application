@@ -1,14 +1,14 @@
 <script setup lang="ts">
-import type { ApiEndpoint, ParameterLocation, ParameterType } from '@/types/api';
+import type { Endpoint, ParameterLocation, ParameterType } from '@/types/api';
 import { ref, computed } from 'vue';
 import { v4 as uuidv4 } from 'uuid';
 
 const props = defineProps<{
-    modelValue: ApiEndpoint;
+    modelValue: Endpoint;
 }>();
 
 const emit = defineEmits<{
-    (e: 'update:modelValue', value: ApiEndpoint): void;
+    (e: 'update:modelValue', value: Endpoint): void;
     (e: 'save'): void;
     (e: 'cancel'): void;
 }>();

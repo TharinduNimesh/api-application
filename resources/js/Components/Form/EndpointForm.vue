@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue';
-import type { ApiEndpoint } from '@/types/api';
+import type { Endpoint } from '@/types/api';
 import Dropdown from 'primevue/dropdown';
 import InputText from 'primevue/inputtext';
 import Textarea from 'primevue/textarea';
@@ -9,12 +9,12 @@ import AccordionTab from 'primevue/accordiontab';
 import Chip from 'primevue/chip';
 
 const props = defineProps<{
-    modelValue: ApiEndpoint;
+    modelValue: Endpoint;
     index: number;
 }>();
 
 const emit = defineEmits<{
-    (e: 'update:modelValue', value: ApiEndpoint): void;
+    (e: 'update:modelValue', value: Endpoint): void;
     (e: 'remove'): void;
 }>();
 

@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import type { ApiEndpoint } from '@/types/api';
+import type { Endpoint } from '@/types/api';
 
 defineProps<{
-    endpoint: ApiEndpoint;
+    endpoint: Endpoint;
 }>();
 
 const emit = defineEmits<{

@@ -3,21 +3,26 @@ import { z } from 'zod';
 export type ApiType = 'FREE' | 'PAID';
 export type ApiStatus = 'ACTIVE' | 'INACTIVE';
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
+export type ParameterLocation = 'query' | 'path' | 'body' | 'header';
+export type ParameterType = 'string' | 'number' | 'boolean' | 'object' | 'array';
 
 export interface Parameter {
+  id?: string;
   name: string;
-  type: string;
+  type: ParameterType;
+  location: ParameterLocation;
   required: boolean;
   description: string;
+  defaultValue?: string;
 }
 
 export interface Endpoint {
-  id: string;
+  id?: string;
   method: HttpMethod;
   name: string;
   path: string;
   description: string;
-  parameters?: Parameter[];
+  parameters: Parameter[];
 }
 
 export interface User {
@@ -35,8 +40,11 @@ export interface Api {
   rateLimit: number;
   createdAt: string;
   endpoints: Endpoint[];
+  endpointCount: number;
   createdBy?: User;
 }
+
+export type CreateApi = Omit<Api, 'id' | 'status' | 'createdAt' | 'createdBy' | 'endpointCount'>;
 
 // Zod schema for validation
 export const CreateApiSchema = z.object({

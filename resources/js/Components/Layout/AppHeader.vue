@@ -30,8 +30,18 @@ const menuItems = ref([
   }
 ]);
 
+// Update the sidebarMenuItems type
+interface MenuItem {
+  header?: string;
+  label?: string;
+  icon?: string;
+  class?: string;
+  command?: () => void;
+  separator?: boolean;
+}
+
 // Add a separate menuItems for mobile sidebar
-const sidebarMenuItems = computed(() => [
+const sidebarMenuItems = computed<MenuItem[]>(() => [
   {
     header: "Account Settings",
     class: "text-gray-500 text-xs uppercase font-semibold mb-2",
