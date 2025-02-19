@@ -25,7 +25,7 @@ WORKDIR /var/www
 # Copy composer files and install dependencies
 COPY composer*.json ./
 COPY composer.lock ./
-RUN composer install --no-scripts --no-autoloader
+RUN composer install 
 
 # Copy package files and install npm dependencies
 COPY package*.json ./
@@ -33,6 +33,9 @@ RUN npm install
 
 # Copy project files
 COPY . .
+
+# Build frontend assets
+RUN npm run build
 
 # Optimize autoload
 RUN composer dump-autoload --optimize
