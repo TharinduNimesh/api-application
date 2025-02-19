@@ -18,6 +18,10 @@ class Api extends Model
         'created_by'
     ];
 
+    protected $hidden = [
+        'baseUrl'
+    ];
+
     protected $casts = [
         'rateLimit' => 'integer',
         'created_at' => 'datetime',
