@@ -6,7 +6,13 @@ services:
     container_name: laravel-app
     restart: unless-stopped
     volumes:
-      - .:/var/www
+      - ./app:/var/www/app
+      - ./config:/var/www/config
+      - ./resources:/var/www/resources
+      - ./routes:/var/www/routes
+      - ./storage:/var/www/storage
+      - ./tests:/var/www/tests
+      - .env:/var/www/.env
     ports:
       - "8080:80"
     networks:
