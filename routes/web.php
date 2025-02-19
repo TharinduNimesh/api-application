@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\ApiController;
 use App\Http\Controllers\ProfileController;
+use App\Models\Api;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -39,12 +40,23 @@ Route::middleware(['auth', 'verified'])->group(function () {
                 Route::get('/create', function () {
                     return Inertia::render('Api/Create');
                 })->name('create');
+                
+                // Update edit route to include endpoints
+                Route::get('/{api}/edit', function (Api $api) {
+                    return Inertia::render('Api/Edit', [
+                        'api' => $api->load(['endpoints', 'endpoints.parameters']) // Load the endpoints relationship
+                    ]);
+                })->name('edit');
+                
                 Route::post('/apis', [ApiController::class, 'create'])->name('store');
                 Route::patch('/{api}/archive', [ApiController::class, 'archive'])->name('archive');
                 Route::patch('/{api}/activate', [ApiController::class, 'activate'])->name('activate');
+                Route::patch('/{api}', [ApiController::class, 'update'])->name('update');
                 Route::delete('/{api}', [ApiController::class, 'destroy'])->name('destroy');
                 Route::delete('/{api}/endpoints/{endpoint}', [ApiController::class, 'deleteEndpoint'])
                     ->name('endpoints.delete');
+                Route::patch('/{api}/endpoints/{endpoint}', [ApiController::class, 'updateEndpoint'])
+                    ->name('endpoints.update');
             });
             Route::get('/{api}', [ApiController::class, 'show'])->name('show');
 

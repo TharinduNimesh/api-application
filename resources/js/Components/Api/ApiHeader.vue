@@ -93,7 +93,6 @@ const handleDelete = async () => {
             rounded
             @click="$emit('back')"
             class="hover:bg-gray-100/80 backdrop-blur-sm transition-all duration-200 w-10 h-10"
-            v-ripple
           />
             <div class="flex flex-col gap-3 min-w-0">
             <!-- Header Row -->
@@ -131,14 +130,13 @@ const handleDelete = async () => {
           <template v-if="$page.props.auth.user.role === 'admin'">
             <!-- Primary Actions -->
             <ButtonGroup class="w-full sm:w-auto">
-              <Link :href="route('dashboard', api.id)" class="flex-1 sm:flex-none">
+              <Link :href="route('api.edit', api.id)" class="flex-1 sm:flex-none">
                 <Button
                   v-tooltip.bottom="'Edit API configuration'"
                   label="Edit"
                   icon="pi pi-pencil"
                   severity="secondary"
                   class="action-button"
-                  v-ripple
                 />
               </Link>
               
@@ -150,7 +148,6 @@ const handleDelete = async () => {
                 icon="pi pi-inbox"
                 severity="warning"
                 class="action-button"
-                v-ripple
                 @click="showArchiveModal = true"
               />
               <Button
@@ -160,7 +157,6 @@ const handleDelete = async () => {
                 icon="pi pi-refresh"
                 severity="success"
                 class="action-button"
-                v-ripple
                 @click="showRestoreModal = true"
               />
             </ButtonGroup>
@@ -173,7 +169,6 @@ const handleDelete = async () => {
               icon="pi pi-trash"
               severity="danger"
               class="action-button danger-button"
-              v-ripple
               @click="showDeleteModal = true"
             />
           </template>

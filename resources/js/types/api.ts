@@ -23,6 +23,7 @@ export interface Endpoint {
   path: string;
   description: string;
   parameters: Parameter[];
+  isNew?: boolean;
 }
 
 export interface User {

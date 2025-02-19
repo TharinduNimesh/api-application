@@ -1,16 +1,20 @@
 <script setup lang="ts">
-import type { Endpoint, ParameterLocation, ParameterType } from '@/types/api';
+import type { Endpoint, Parameter, ParameterLocation, ParameterType } from '@/types/api';
 import { ref, computed } from 'vue';
 import { v4 as uuidv4 } from 'uuid';
+import Dialog from 'primevue/dialog';
 
 const props = defineProps<{
     modelValue: Endpoint;
+    isEditing?: boolean; // Add new prop to determine if we're editing
 }>();
 
 const emit = defineEmits<{
     (e: 'update:modelValue', value: Endpoint): void;
     (e: 'save'): void;
     (e: 'cancel'): void;
+    (e: 'parameter-updated', id: string): void;
+    (e: 'parameter-deleted', id: string): void;
 }>();
 
 const parameterLocations: { label: string; value: ParameterLocation; icon: string }[] = [
@@ -67,16 +71,43 @@ const addParameter = () => {
     };
 };
 
+const handleParameterUpdate = (parameter: Parameter) => {
+    if (parameter.id) {
+        emit('parameter-updated', parameter.id);
+    }
+};
+
+const handleParameterDelete = (parameter: Parameter) => {
+    if (parameter.id) {
+        emit('parameter-deleted', parameter.id);
+    }
+};
+
 const isValid = computed(() => {
     return props.modelValue.name && 
            props.modelValue.path && 
            props.modelValue.description;
 });
 
+const showConfirmModal = ref(false);
+const confirmLoading = ref(false);
+
 const handleSave = () => {
     if (isValid.value) {
-        emit('save');
+        if (props.isEditing) {
+            showConfirmModal.value = true;
+        } else {
+            // For new endpoints, save directly
+            emit('save');
+        }
     }
+};
+
+const handleConfirmedSave = () => {
+    confirmLoading.value = true;
+    emit('save');
+    showConfirmModal.value = false;
+    confirmLoading.value = false;
 };
 </script>
 
@@ -222,7 +253,7 @@ const handleSave = () => {
                     <template #body="{ data, index }">
                         <Button 
                             icon="pi pi-trash" 
-                            @click="modelValue.parameters.splice(index, 1)"
+                            @click="modelValue.parameters.splice(index, 1); handleParameterDelete(data);"
                             text
                             severity="danger"
                             size="small"
@@ -247,5 +278,67 @@ const handleSave = () => {
                 severity="primary"
             />
         </div>
+
+        <!-- Add Confirmation Modal - Only shown when editing -->
+        <Dialog
+            v-if="isEditing"
+            v-model:visible="showConfirmModal"
+            modal
+            header="Confirm Changes"
+            :style="{ width: '450px' }"
+            :closable="!confirmLoading"
+        >
+            <div class="space-y-4">
+                <p class="text-gray-600">
+                    Are you sure you want to save these changes to the endpoint?
+                </p>
+                
+                <!-- Show summary of changes -->
+                <div class="bg-gray-50 p-4 rounded text-sm space-y-2">
+                    <p><strong>Method:</strong> {{ modelValue.method }}</p>
+                    <p><strong>Name:</strong> {{ modelValue.name }}</p>
+                    <p><strong>Path:</strong> {{ modelValue.path }}</p>
+                    <p><strong>Parameters:</strong> {{ modelValue.parameters.length }}</p>
+                </div>
+            </div>
+
+            <template #footer>
+                <Button
+                    label="Cancel"
+                    icon="pi pi-times"
+                    text
+                    @click="showConfirmModal = false"
+                    :disabled="confirmLoading"
+                />
+                <Button
+                    label="Save Changes"
+                    icon="pi pi-check"
+                    severity="primary"
+                    @click="handleConfirmedSave"
+                    :loading="confirmLoading"
+                />
+            </template>
+        </Dialog>
     </div>
 </template>
+
+<style scoped>
+/* Add styles for confirmation dialog */
+:deep(.p-dialog-header) {
+    padding: 1.5rem;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+:deep(.p-dialog-content) {
+    padding: 1.5rem;
+}
+
+:deep(.p-dialog-footer) {
+    padding: 1.5rem;
+    border-top: 1px solid #e5e7eb;
+}
+
+:deep(.p-dialog .p-button) {
+    min-width: 100px;
+}
+</style>

@@ -3,11 +3,14 @@
 namespace App\Http\Controllers;
 
 use App\Models\Api;
+use App\Models\Endpoint;
 use App\Http\Requests\CreateApiRequest;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\Request;
+use Illuminate\Http\JsonResponse;
 use Inertia\Inertia;
 use GuzzleHttp\Client; // make sure to install guzzlehttp/guzzle via Composer
+use Illuminate\Support\Facades\DB;
 
 class ApiController extends Controller
 {
@@ -62,6 +65,11 @@ class ApiController extends Controller
 
     public function show(Api $api)
     {
+        // Check if API is inactive and user is not admin
+        if (!$api->is_active && Auth::user()->role !== 'admin') {
+            abort(404);
+        }
+
         $api->load(['createdBy', 'endpoints.parameters']);
 
         $apiData = [
@@ -238,6 +246,109 @@ class ApiController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Error deleting endpoint',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function updateEndpoint(Request $request, Api $api, string $endpointId): JsonResponse
+    {
+        try {
+            $endpoint = $api->endpoints()->findOrFail($endpointId);
+            
+            // Update basic endpoint info
+            $endpoint->update([
+                'name'        => $request->endpoint['name'],
+                'method'      => $request->endpoint['method'],
+                'path'        => $request->endpoint['path'],
+                'description' => $request->endpoint['description'],
+            ]);
+
+            // Get input parameters from the endpoint (default to empty array)
+            $inputParameters = $request->input('endpoint.parameters', []);
+            
+            // Get IDs of the endpoint's current parameters
+            $existingIds = $endpoint->parameters->pluck('_id')->toArray();
+            $updatedIds = []; // IDs we will update from input
+
+            // Loop over each parameter from the request (new or update)
+            foreach ($inputParameters as $paramData) {
+                // Remove id and _id fields from parameter data
+                $parameterData = collect($paramData)
+                    ->except(['id', '_id'])
+                    ->toArray();
+
+                // If an ID is provided and exists, update that parameter
+                if (!empty($paramData['id']) && in_array($paramData['id'], $existingIds)) {
+                    $parameter = $endpoint->parameters()->find($paramData['id']);
+                    if ($parameter) {
+                        $parameter->update($parameterData);
+                        $updatedIds[] = $paramData['id'];
+                    }
+                } else {
+                    // Create new parameter without id fields
+                    $endpoint->parameters()->create($parameterData);
+                }
+            }
+
+            // Delete any parameters that were not provided in the update
+            $toDelete = array_diff($existingIds, $updatedIds);
+            if (!empty($toDelete)) {
+                $endpoint->parameters()->whereIn('_id', $toDelete)->delete();
+            }
+            
+            // Refresh and return the updated endpoint with parameters
+            $endpoint->load('parameters');
+
+            return response()->json([
+                'message'  => 'Endpoint updated successfully',
+                'endpoint' => $endpoint
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Failed to update endpoint',
+                'error'   => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function update(Request $request, Api $api): JsonResponse
+    {
+        try {
+            // Update basic API info
+            $api->update([
+                'name' => $request->name,
+                'description' => $request->description,
+                'type' => $request->type,
+                'baseUrl' => $request->baseUrl,
+                'rateLimit' => $request->rateLimit,
+            ]);
+
+            // Handle new endpoints if any
+            if (!empty($request->newEndpoints)) {
+                foreach ($request->newEndpoints as $endpointData) {
+                    $parameters = $endpointData['parameters'] ?? [];
+                    unset($endpointData['parameters']);
+
+                    $endpoint = $api->endpoints()->create($endpointData);
+
+                    foreach ($parameters as $parameterData) {
+                        $endpoint->parameters()->create($parameterData);
+                    }
+                }
+            }
+
+            // Refresh and return the updated API with all relations
+            $api->load(['endpoints.parameters']);
+
+            return response()->json([
+                'message' => 'API updated successfully',
+                'api' => $api
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Failed to update API',
                 'error' => $e->getMessage()
             ], 500);
         }

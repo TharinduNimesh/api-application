@@ -7,6 +7,7 @@ import ApiFilterBar from "@/Components/ApiFilterBar.vue";
 import Paginator from "primevue/paginator";
 import { Link, usePage } from "@inertiajs/vue3";
 import axios from 'axios';
+import ProgressSpinner from 'primevue/progressspinner';
 import { useToast } from "primevue/usetoast";
 import type { Api as ApiType } from '@/types/api';
 
