@@ -45,6 +45,11 @@ class User extends Authenticatable
         return $this->hasMany(Api::class, 'created_by');
     }
 
+    public function isOnTrial(): bool
+    {
+        return $this->created_at->diffInDays(now()) <= 15;
+    }
+
     /**
      * Get the attributes that should be cast.
      *

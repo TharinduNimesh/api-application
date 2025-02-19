@@ -34,7 +34,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::prefix('api')->name('api.')
         ->group(function () {
             Route::get('/list', [ApiController::class, 'index'])->name('list');
-            
+
             Route::middleware(['isAdmin'])->group(function () {
                 Route::get('/create', function () {
                     return Inertia::render('Api/Create');
@@ -47,9 +47,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
                     ->name('endpoints.delete');
             });
             Route::get('/{api}', [ApiController::class, 'show'])->name('show');
-            
+
             // New route to call external endpoints via the backend
-            Route::post('/{api}/call-endpoint', [ApiController::class, 'callEndpoint'])->name('call-endpoint');
+            Route::post('/{api}/call-endpoint', [ApiController::class, 'callEndpoint'])
+                ->middleware(['api.status', 'api.access', 'api.rateLimit'])
+                ->name('call-endpoint');
         });
 });
 

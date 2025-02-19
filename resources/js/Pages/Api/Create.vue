@@ -219,7 +219,7 @@ const handleCancelEndpoint = () => {
 
             <div class="space-y-2">
               <label class="text-sm font-medium text-gray-700"
-                >Rate Limit (requests per minute)</label
+                >Rate Limit (requests per Hour)</label
               >
               <InputNumber
                 v-model="form.rateLimit"
