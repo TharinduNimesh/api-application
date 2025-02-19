@@ -40,6 +40,56 @@ const parseJsonSafely = (value) => {
 const page = usePage();
 const apiId = page.props.api.id; // current API id from the show page
 
+const getErrorMessage = (error) => {
+  const status = error.response?.status;
+  const message = error.response?.data?.message;
+
+  switch (status) {
+    case 429:
+      return {
+        status,
+        message: message || 'Rate limit exceeded. Please try again later.',
+        type: 'rate-limit'
+      };
+    case 403:
+      return {
+        status,
+        message: message || 'This API is only accessible to paid users.',
+        type: 'access-denied'
+      };
+    case 401:
+      return {
+        status,
+        message: message || 'Your session has expired. Please login again.',
+        type: 'unauthorized'
+      };
+    case 422:
+      return {
+        status,
+        message: message || 'Invalid request parameters.',
+        type: 'validation'
+      };
+    case 404:
+      return {
+        status,
+        message: message || 'API endpoint not found.',
+        type: 'not-found'
+      };
+    case 500:
+      return {
+        status,
+        message: 'Internal server error occurred.',
+        type: 'server-error'
+      };
+    default:
+      return {
+        status: status || 0,
+        message: message || 'An unexpected error occurred.',
+        type: 'unknown'
+      };
+  }
+};
+
 // Modify sendRequest method to call the backend route instead of the external API directly
 const sendRequest = async () => {
   loading.value = true;
@@ -65,7 +115,19 @@ const sendRequest = async () => {
     response.value = result.data;
     activeTab.value = 1; // Switch to response tab
   } catch (err) {
-    error.value = err.response?.data?.message || err.message;
+    const errorDetails = getErrorMessage(err);
+    
+    // Set error response for ResponseView component
+    response.value = {
+      status: errorDetails.status,
+      data: {
+        message: errorDetails.message,
+        error: errorDetails.type
+      }
+    };
+    
+    error.value = errorDetails.message;
+    activeTab.value = 1; // Switch to response tab to show error
   } finally {
     loading.value = false;
   }

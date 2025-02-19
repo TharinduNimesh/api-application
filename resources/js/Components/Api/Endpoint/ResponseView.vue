@@ -5,7 +5,11 @@ import Message from 'primevue/message';
 import Button from 'primevue/button';
 import Tag from 'primevue/tag';
 import Skeleton from 'primevue/skeleton';
+import Toast from 'primevue/toast';
+import { useToast } from 'primevue/usetoast';
 import { useCodeHighlighter } from '@/composables/useCodeHighlighter';
+
+const toast = useToast();
 
 const props = defineProps({
   response: {
@@ -144,21 +148,94 @@ const updateHighlightedCode = async () => {
   }
 };
 
+// Enhanced error handling computed properties
+const errorType = computed(() => {
+  if (!props.error && !props.response) return null;
+  
+  if (props.response?.status) {
+    const status = props.response.status;
+    
+    if (status === 429) return 'rate-limit';
+    if (status === 403) return 'forbidden';
+    if (status === 401) return 'unauthorized';
+    if (status >= 500) return 'server';
+    if (status >= 400) return 'client';
+  }
+  
+  return props.error ? 'network' : null;
+});
+
+const errorMessage = computed(() => {
+  switch (errorType.value) {
+    case 'rate-limit':
+      return 'Too many requests. Please try again later.';
+    case 'forbidden':
+      return 'You do not have permission to access this API.';
+    case 'unauthorized':
+      return 'Please authenticate to access this API.';
+    case 'server':
+      return 'Server error occurred. Please try again later.';
+    case 'client':
+      return props.response?.data?.message || 'Invalid request. Please check your parameters.';
+    case 'network':
+      return props.error;
+    default:
+      return null;
+  }
+});
+
+const errorSeverity = computed(() => {
+  switch (errorType.value) {
+    case 'rate-limit':
+    case 'forbidden':
+    case 'unauthorized':
+      return 'warn';
+    case 'server':
+    case 'network':
+      return 'error';
+    case 'client':
+      return 'info';
+    default:
+      return null;
+  }
+});
+
+// Watch for errors and show toast
+watch(() => errorType.value, (newErrorType) => {
+  if (newErrorType) {
+    toast.add({
+      severity: errorSeverity.value,
+      summary: errorType.value.charAt(0).toUpperCase() + errorType.value.slice(1),
+      detail: errorMessage.value,
+      life: 5000
+    });
+  }
+}, { immediate: true });
+
 watch(() => props.response, updateHighlightedCode, { immediate: true });
 </script>
 
 <template>
   <ScrollPanel class="h-full">
+    <Toast />
     <div class="p-6">
       <div v-if="!response && !error" class="text-center py-12">
         <i class="pi pi-send text-4xl text-gray-300 mb-4"></i>
         <p class="text-gray-500">Send a request to see the response</p>
       </div>
 
-      <Message v-if="error" severity="error" class="mb-4">
-        {{ error }}
+      <Message v-if="errorMessage" :severity="errorSeverity" class="mb-4">
+        <template #messageicon>
+          <i :class="{
+            'pi pi-exclamation-circle': errorSeverity === 'error',
+            'pi pi-exclamation-triangle': errorSeverity === 'warn',
+            'pi pi-info-circle': errorSeverity === 'info'
+          }"></i>
+        </template>
+        {{ errorMessage }}
       </Message>
 
+      <!-- Show response even if there's an error -->
       <div v-if="response" class="space-y-4">
         <div class="flex items-center justify-between">
           <!-- Use dynamic Tag based on the endpoint response status -->
