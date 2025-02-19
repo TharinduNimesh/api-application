@@ -110,33 +110,34 @@ class ApiController extends Controller
         $endpointId = $request->input('endpoint_id');
         $data = $request->input('data', []);
 
-        // Retrieve the endpoint associated with the API and load its parameters
+        // Retrieve the endpoint and load its parameters
         $endpoint = $api->endpoints()->where('_id', $endpointId)->first();
         if (!$endpoint) {
-            return response()->json(['error' => 'Endpoint not found'], 404);
+            return response()->json([
+                'status' => 404,
+                'error' => 'Endpoint not found'
+            ], 200);
         }
 
-        // Replace path parameters placeholders with actual data
+        // Replace path parameter placeholders with actual data
         $path = $endpoint->path;
-        // Ensure parameters relationship is loaded
         $endpoint->load('parameters');
         foreach ($endpoint->parameters as $param) {
-            // Check if parameter location is "path"
             if (isset($param->location) && $param->location === 'path') {
                 if (!isset($data[$param->name])) {
-                    return response()->json(['error' => "Missing path parameter: {$param->name}"], 422);
+                    return response()->json([
+                        'status' => 422,
+                        'error' => "Missing path parameter: {$param->name}"
+                    ], 200);
                 }
-                // replace placeholder e.g. {id} with actual value
                 $path = str_replace('{' . $param->name . '}', $data[$param->name], $path);
-                // Remove the path parameter from data to avoid sending it as query/json
                 unset($data[$param->name]);
             }
         }
 
-        // Construct the full external URL
         $url = rtrim($api->baseUrl, '/') . '/' . ltrim($path, '/');
 
-        $client = new Client();
+        $client = new \GuzzleHttp\Client();
         try {
             $options = [];
             if (in_array($endpoint->method, ['POST', 'PUT', 'PATCH'])) {
@@ -146,14 +147,30 @@ class ApiController extends Controller
             }
             $response = $client->request($endpoint->method, $url, $options);
             $content = $response->getBody()->getContents();
-
             $decoded = json_decode($content, true);
             return response()->json([
                 'status' => $response->getStatusCode(),
                 'data' => $decoded ?? $content,
-            ]);
+            ], 200);
+        } catch (\GuzzleHttp\Exception\RequestException $e) {
+            if ($e->hasResponse()) {
+                $responseBody = $e->getResponse()->getBody()->getContents();
+                $statusCode = $e->getResponse()->getStatusCode();
+                return response()->json([
+                    'status' => $statusCode,
+                    'error' => 'Request failed',
+                    'response' => json_decode($responseBody, true) ?? $responseBody,
+                ], 200);
+            }
+            return response()->json([
+                'status' => 500,
+                'error' => $e->getMessage()
+            ], 200);
         } catch (\Exception $e) {
-            return response()->json(['error' => $e->getMessage()], 500);
+            return response()->json([
+                'status' => 500,
+                'error' => $e->getMessage()
+            ], 200);
         }
     }
 
