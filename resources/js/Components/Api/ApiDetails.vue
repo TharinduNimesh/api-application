@@ -35,7 +35,7 @@ const formatDate = (date: string) => {
             <h3 class="text-sm font-medium text-gray-500">Rate Limit</h3>
             <div class="flex items-baseline gap-2">
               <span class="text-2xl font-bold text-indigo-600">{{ api.rateLimit }}</span>
-              <span class="text-gray-500">requests/minute</span>
+              <span class="text-gray-500">requests/hour</span>
             </div>
           </div>
           <div class="bg-gray-50 p-4 rounded-lg">
