@@ -29,7 +29,6 @@ A robust API management solution built with Laravel and Vue.js, offering compreh
 - [Project Overview](docs/OVERVIEW.md)
 - [Features Documentation](docs/FEATURES.md)
 - [Deployment Guide](docs/DEPLOYMENT.md)
-- [User Guide](docs/USER_GUIDE.md)
 
 ## 🛠️ Tech Stack
 
