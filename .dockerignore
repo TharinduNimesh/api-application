@@ -2,8 +2,6 @@
 /vendor
 /data
 .git
-.env
-.env.example
 .gitignore
 .gitattributes
 README.md

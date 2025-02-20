@@ -12,7 +12,6 @@ services:
       - ./routes:/var/www/routes
       - ./storage:/var/www/storage
       - ./tests:/var/www/tests
-      - .env:/var/www/.env
     ports:
       - "8080:80"
     networks:
