@@ -318,7 +318,8 @@ const handleDelete = async () => {
 }
 
 .danger-button:hover {
-  background-color: rgb(254 242 242);
+  background-color: rgb(220 38 38) !important;
+  color: white !important;
 }
 
 /* Button group styling */
