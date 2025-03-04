@@ -1,0 +1,41 @@
+services:
+  # PHP API Application Service
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.local
+    container_name: api-app
+    volumes:
+      - .:/app
+    networks:
+      - api-network
+    user: "1000:1000"  # Use your host user's UID:GID for permissions
+    ports:
+      - "8000:8000"
+      - "5173:5173"
+    depends_on:
+      - mongo
+
+  # MongoDB Service
+  mongo:
+    image: mongo:latest
+    container_name: api-mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${DB_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${DB_PASSWORD}
+      MONGO_INITDB_DATABASE: ${DB_DATABASE}
+    volumes:
+      - apiforge_mongo_data:/data/db
+    networks:
+      - api-network
+
+networks:
+  api-network:
+    driver: bridge
+
+volumes:
+  apiforge_mongo_data:
+    driver: local
