@@ -14,11 +14,13 @@ class Parameter extends Model
         'location',
         'required',
         'description',
-        'defaultValue'
+        'defaultValue',
+        'fileConfig'
     ];
 
     protected $casts = [
-        'required' => 'boolean'
+        'required' => 'boolean',
+        'fileConfig' => 'array'
     ];
 
     public function endpoint(): BelongsTo

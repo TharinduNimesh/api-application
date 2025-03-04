@@ -110,6 +110,11 @@ class ApiController extends Controller
     // New method to call external API endpoints
     public function callEndpoint(Request $request, Api $api)
     {
+        \Log::debug('Starting API endpoint call', [
+            'api_id' => $api->_id,
+            'request_data' => $request->all()
+        ]);
+
         $request->validate([
             'endpoint_id' => 'required|string',
             'data' => 'nullable|array'
@@ -121,11 +126,18 @@ class ApiController extends Controller
         // Retrieve the endpoint and load its parameters
         $endpoint = $api->endpoints()->where('_id', $endpointId)->first();
         if (!$endpoint) {
+            \Log::warning('Endpoint not found', ['endpoint_id' => $endpointId]);
             return response()->json([
                 'status' => 404,
                 'error' => 'Endpoint not found'
             ], 200);
         }
+
+        \Log::debug('Found endpoint', [
+            'endpoint_id' => $endpoint->_id,
+            'method' => $endpoint->method,
+            'path' => $endpoint->path
+        ]);
 
         // Replace path parameter placeholders with actual data
         $path = $endpoint->path;
@@ -133,6 +145,7 @@ class ApiController extends Controller
         foreach ($endpoint->parameters as $param) {
             if (isset($param->location) && $param->location === 'path') {
                 if (!isset($data[$param->name])) {
+                    \Log::warning('Missing path parameter', ['parameter' => $param->name]);
                     return response()->json([
                         'status' => 422,
                         'error' => "Missing path parameter: {$param->name}"
@@ -144,23 +157,165 @@ class ApiController extends Controller
         }
 
         $url = rtrim($api->baseUrl, '/') . '/' . ltrim($path, '/');
+        \Log::debug('Prepared API URL', ['url' => $url]);
 
         $client = new \GuzzleHttp\Client();
         try {
-            $options = [];
+            $options = [
+                'headers' => [
+                    'Accept' => 'application/json',
+                ]
+            ];
+
+            // Get file parameters
+            $fileParams = $endpoint->parameters->where('type', 'file');
+            \Log::debug('File parameters found', ['count' => $fileParams->count()]);
+            
             if (in_array($endpoint->method, ['POST', 'PUT', 'PATCH'])) {
-                $options['json'] = $data;
+                if ($fileParams->count() > 0) {
+                    $multipart = [];
+                    $fileStreams = [];
+                    
+                    // Add non-file fields
+                    foreach ($data as $key => $value) {
+                        if (!$fileParams->where('name', $key)->count()) {
+                            $multipart[] = [
+                                'name' => $key,
+                                'contents' => is_array($value) ? json_encode($value) : $value
+                            ];
+                        }
+                    }
+                    
+                    try {
+                        // Add file fields
+                        foreach ($fileParams as $param) {
+                            $fileData = $data[$param->name] ?? null;
+                            \Log::debug('Processing file parameter', [
+                                'param_name' => $param->name,
+                                'files_present' => !is_null($fileData)
+                            ]);
+
+                            if ($fileData) {
+                                if ($param->fileConfig['multiple'] && is_array($fileData)) {
+                                    foreach ($fileData as $file) {
+                                        if (is_array($file) && isset($file['tmp_name'])) {
+                                            $stream = fopen($file['tmp_name'], 'r');
+                                            if ($stream === false) {
+                                                throw new \Exception('Failed to open file: ' . $file['name']);
+                                            }
+                                            $fileStreams[] = $stream;
+                                            $multipart[] = [
+                                                'name' => $param->name . '[]',
+                                                'contents' => $stream,
+                                                'filename' => $file['name']
+                                            ];
+                                        } else if (is_object($file) && method_exists($file, 'getPathname')) {
+                                            $stream = fopen($file->getPathname(), 'r');
+                                            if ($stream === false) {
+                                                throw new \Exception('Failed to open file: ' . $file->getClientOriginalName());
+                                            }
+                                            $fileStreams[] = $stream;
+                                            $multipart[] = [
+                                                'name' => $param->name . '[]',
+                                                'contents' => $stream,
+                                                'filename' => $file->getClientOriginalName()
+                                            ];
+                                        }
+                                    }
+                                } else {
+                                    if (is_array($fileData) && isset($fileData['tmp_name'])) {
+                                        $stream = fopen($fileData['tmp_name'], 'r');
+                                        if ($stream === false) {
+                                            throw new \Exception('Failed to open file: ' . $fileData['name']);
+                                        }
+                                        $fileStreams[] = $stream;
+                                        $multipart[] = [
+                                            'name' => $param->name,
+                                            'contents' => $stream,
+                                            'filename' => $fileData['name']
+                                        ];
+                                    } else if (is_array($fileData) && isset($fileData['objectURL'])) {
+                                        // Handle blob data directly from request
+                                        $blobContent = file_get_contents('php://input');
+                                        $tempFile = tmpfile();
+                                        if ($tempFile === false) {
+                                            throw new \Exception('Failed to create temporary file');
+                                        }
+                                        fwrite($tempFile, $blobContent);
+                                        $metaData = stream_get_meta_data($tempFile);
+                                        $fileStreams[] = $tempFile;
+                                        $multipart[] = [
+                                            'name' => $param->name,
+                                            'contents' => fopen($metaData['uri'], 'r'),
+                                            'filename' => basename($fileData['name'] ?? 'blob')
+                                        ];
+                                    } else if (is_object($fileData) && method_exists($fileData, 'getPathname')) {
+                                        $stream = fopen($fileData->getPathname(), 'r');
+                                        if ($stream === false) {
+                                            throw new \Exception('Failed to open file: ' . $fileData->getClientOriginalName());
+                                        }
+                                        $fileStreams[] = $stream;
+                                        $multipart[] = [
+                                            'name' => $param->name,
+                                            'contents' => $stream,
+                                            'filename' => $fileData->getClientOriginalName()
+                                        ];
+                                    }
+                                }
+                            }
+                        }
+                        
+                        \Log::debug('Preparing multipart request', [
+                            'multipart_count' => count($multipart)
+                        ]);
+                        $options['multipart'] = $multipart;
+                        $response = $client->request($endpoint->method, $url, $options);
+                        $content = $response->getBody()->getContents();
+                        $decoded = json_decode($content, true);
+                        
+                        return response()->json([
+                            'status' => $response->getStatusCode(),
+                            'data' => $decoded ?? $content,
+                        ], 200);
+                    } finally {
+                        // Close all opened file streams
+                        foreach ($fileStreams as $stream) {
+                            if (is_resource($stream)) {
+                                fclose($stream);
+                            }
+                        }
+                    }
+                } else {
+                    $options['json'] = $data;
+                }
             } elseif ($endpoint->method === 'GET') {
                 $options['query'] = $data;
             }
+
+            \Log::debug('Making API request', [
+                'method' => $endpoint->method,
+                'url' => $url,
+                'options' => $options
+            ]);
+
             $response = $client->request($endpoint->method, $url, $options);
             $content = $response->getBody()->getContents();
             $decoded = json_decode($content, true);
+
+            \Log::debug('API request successful', [
+                'status_code' => $response->getStatusCode()
+            ]);
+
             return response()->json([
                 'status' => $response->getStatusCode(),
                 'data' => $decoded ?? $content,
             ], 200);
         } catch (\GuzzleHttp\Exception\RequestException $e) {
+            \Log::error('Guzzle request exception', [
+                'message' => $e->getMessage(),
+                'has_response' => $e->hasResponse()
+            ]);
+
             if ($e->hasResponse()) {
                 $responseBody = $e->getResponse()->getBody()->getContents();
                 $statusCode = $e->getResponse()->getStatusCode();
@@ -175,6 +330,11 @@ class ApiController extends Controller
                 'error' => $e->getMessage()
             ], 200);
         } catch (\Exception $e) {
+            \Log::error('Unexpected error in API call', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
             return response()->json([
                 'status' => 500,
                 'error' => $e->getMessage()

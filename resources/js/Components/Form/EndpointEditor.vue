@@ -3,6 +3,41 @@ import type { Endpoint, Parameter, ParameterLocation, ParameterType } from '@/ty
 import { ref, computed } from 'vue';
 import { v4 as uuidv4 } from 'uuid';
 import Dialog from 'primevue/dialog';
+import Chips from 'primevue/chips';
+import DataTable from 'primevue/datatable';
+import Column from 'primevue/column';
+import Tag from 'primevue/tag';
+import MultiSelect from 'primevue/multiselect';
+
+interface MimeTypeOption {
+    label: string;
+    value: string[];
+}
+
+// Common MIME types for file uploads
+const commonMimeTypes: MimeTypeOption[] = [
+    { label: 'Images (JPEG, PNG)', value: ['image/jpeg', 'image/png'] },
+    { label: 'PDF Documents', value: ['application/pdf'] },
+    { label: 'Word Documents', value: ['application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'] },
+    { label: 'Excel Spreadsheets', value: ['application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'] },
+    { label: 'CSV Files', value: ['text/csv'] },
+    { label: 'Text Files', value: ['text/plain'] },
+    { label: 'Zip Archives', value: ['application/zip'] }
+];
+
+const selectedMimeTypes = computed({
+    get: () => {
+        if (!newParameter.value.fileConfig?.mimeTypes.length) return [];
+        return commonMimeTypes.filter(type =>
+            type.value.some(mime => newParameter.value.fileConfig!.mimeTypes.includes(mime))
+        );
+    },
+    set: (selected: MimeTypeOption[]) => {
+        if (newParameter.value.fileConfig) {
+            newParameter.value.fileConfig.mimeTypes = selected.flatMap(item => item.value);
+        }
+    }
+});
 
 const props = defineProps<{
     modelValue: Endpoint;
@@ -37,7 +72,8 @@ const parameterTypes = [
     { label: 'Number', value: 'number' as ParameterType },
     { label: 'Boolean', value: 'boolean' as ParameterType },
     { label: 'Object', value: 'object' as ParameterType },
-    { label: 'Array', value: 'array' as ParameterType }
+    { label: 'Array', value: 'array' as ParameterType },
+    { label: 'File', value: 'file' as ParameterType }
 ];
 
 const newParameter = ref<{
@@ -47,13 +83,23 @@ const newParameter = ref<{
     required: boolean;
     description: string;
     defaultValue: string;
+    fileConfig?: {
+        mimeTypes: string[];
+        maxSize: number;
+        multiple: boolean;
+    };
 }>({
     name: '',
     type: 'string',
     location: 'query',
     required: true,
     description: '',
-    defaultValue: ''
+    defaultValue: '',
+    fileConfig: {
+        mimeTypes: [],
+        maxSize: 5 * 1024 * 1024, // 5MB default
+        multiple: false
+    }
 });
 
 const addParameter = () => {
@@ -67,7 +113,12 @@ const addParameter = () => {
         location: 'query',
         required: true,
         description: '',
-        defaultValue: ''
+        defaultValue: '',
+        fileConfig: {
+            mimeTypes: [],
+            maxSize: 5 * 1024 * 1024,
+            multiple: false
+        }
     };
 };
 
@@ -177,7 +228,7 @@ const handleConfirmedSave = () => {
             <!-- Parameter Form -->
             <div class="bg-gray-50 p-4 rounded-lg space-y-4">
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <InputText 
+                    <InputText
                         v-model="newParameter.name"
                         placeholder="Parameter name"
                         class="w-full"
@@ -190,6 +241,8 @@ const handleConfirmedSave = () => {
                         optionValue="value"
                         placeholder="Location"
                         class="w-full"
+                        :disabled="newParameter.type === 'file'"
+                        v-tooltip="newParameter.type === 'file' ? 'File parameters must be in body' : ''"
                     >
                         <template #option="{ option }">
                             <div class="flex items-center gap-2">
@@ -206,17 +259,22 @@ const handleConfirmedSave = () => {
                         optionValue="value"
                         placeholder="Type"
                         class="w-full"
+                        @change="(e) => {
+                            if (e.value === 'file') {
+                                newParameter.location = 'body';
+                            }
+                        }"
                     />
 
                     <div class="flex items-center gap-4">
                         <div class="flex items-center gap-2">
-                            <Checkbox 
+                            <Checkbox
                                 v-model="newParameter.required"
                                 :binary="true"
                             />
                             <label>Required</label>
                         </div>
-                        <Button 
+                        <Button
                             icon="pi pi-plus"
                             @click="addParameter"
                             :disabled="!newParameter.name"
@@ -226,11 +284,50 @@ const handleConfirmedSave = () => {
                     </div>
                 </div>
 
-                <InputText 
+                <InputText
                     v-model="newParameter.description"
                     placeholder="Parameter description"
                     class="w-full"
                 />
+
+                <!-- File Configuration Fields -->
+                <div v-if="newParameter.type === 'file'" class="space-y-4 border-t pt-4">
+                    <h5 class="font-medium">File Configuration</h5>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="space-y-2">
+                            <label class="text-sm text-gray-600">Allowed MIME Types</label>
+                            <div class="flex flex-col gap-2">
+                                <MultiSelect
+                                    v-model="selectedMimeTypes"
+                                    :options="commonMimeTypes"
+                                    optionLabel="label"
+                                    :filter="true"
+                                    placeholder="Select file types"
+                                    class="w-full"
+                                >
+                                    <template #value="{ value }: { value: MimeTypeOption[] }">
+                                        <div v-if="value && value.length" class="flex flex-wrap gap-1">
+                                            {{ value.map((type: MimeTypeOption) => type.label).join(', ') }}
+                                        </div>
+                                        <div v-else>
+                                            Select file types...
+                                        </div>
+                                    </template>
+                                </MultiSelect>
+                                <small class="text-gray-500">You can search and select multiple file types</small>
+                            </div>
+                        </div>
+                        <div class="space-y-2">
+                            <label class="text-sm text-gray-600">Max File Size (bytes)</label>
+                            <InputNumber v-model="newParameter.fileConfig!.maxSize" class="w-full" />
+                            <small class="text-gray-500">Default: 5MB (5242880 bytes)</small>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <Checkbox v-model="newParameter.fileConfig!.multiple" :binary="true" />
+                            <label class="text-sm text-gray-600">Allow Multiple Files</label>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <!-- Parameters List -->
@@ -243,7 +340,18 @@ const handleConfirmedSave = () => {
                         </Tag>
                     </template>
                 </Column>
-                <Column field="type" header="Type" />
+                <Column field="type" header="Type">
+                    <template #body="{ data }">
+                        <div class="space-y-1">
+                            <div>{{ data.type }}</div>
+                            <div v-if="data.type === 'file'" class="text-xs text-gray-500">
+                                <div>MIME Types: {{ data.fileConfig?.mimeTypes.join(', ') || 'Any' }}</div>
+                                <div>Max Size: {{ (data.fileConfig?.maxSize || 0) / (1024 * 1024) }}MB</div>
+                                <div>Multiple: {{ data.fileConfig?.multiple ? 'Yes' : 'No' }}</div>
+                            </div>
+                        </div>
+                    </template>
+                </Column>
                 <Column field="required" header="Required">
                     <template #body="{ data }">
                         <i :class="['pi', data.required ? 'pi-check text-green-500' : 'pi-times text-red-500']" />

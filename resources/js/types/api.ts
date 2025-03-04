@@ -4,7 +4,13 @@ export type ApiType = 'FREE' | 'PAID';
 export type ApiStatus = 'ACTIVE' | 'INACTIVE';
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
 export type ParameterLocation = 'query' | 'path' | 'body' | 'header';
-export type ParameterType = 'string' | 'number' | 'boolean' | 'object' | 'array';
+export type ParameterType = 'string' | 'number' | 'boolean' | 'object' | 'array' | 'file';
+
+export interface FileConfig {
+  mimeTypes: string[];
+  maxSize: number; // in bytes
+  multiple?: boolean;
+}
 
 export interface Parameter {
   id?: string;
@@ -14,6 +20,7 @@ export interface Parameter {
   required: boolean;
   description: string;
   defaultValue?: string;
+  fileConfig?: FileConfig;
 }
 
 export interface Endpoint {
@@ -63,11 +70,16 @@ export const CreateApiSchema = z.object({
         parameters: z.array(z.object({
             id: z.string().optional(),
             name: z.string().min(1),
-            type: z.enum(['string', 'number', 'boolean', 'object', 'array']),
+            type: z.enum(['string', 'number', 'boolean', 'object', 'array', 'file']),
             location: z.enum(['query', 'path', 'body', 'header']),
             required: z.boolean(),
             description: z.string(),
-            defaultValue: z.string().optional()
+            defaultValue: z.string().optional(),
+            fileConfig: z.object({
+                mimeTypes: z.array(z.string()),
+                maxSize: z.number().min(1),
+                multiple: z.boolean().optional()
+            }).optional()
         }))
     }))
 });
