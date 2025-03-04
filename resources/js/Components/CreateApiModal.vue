@@ -7,6 +7,8 @@ import FileUploadZone from '@/Components/FileUploadZone.vue';
 import Message from 'primevue/message';
 import OverlayPanel from 'primevue/overlaypanel';
 import Tooltip from 'primevue/tooltip';
+import axios from 'axios';
+import { useToast } from 'primevue/usetoast';
 
 const props = defineProps<{
     visible: boolean
@@ -27,6 +29,7 @@ const validationError = ref('');
 const validationStatus = ref<'idle' | 'valid' | 'invalid'>('idle');
 const overlayPanel = ref();
 const isValidFile = computed(() => uploadedFile.value !== null && validationStatus.value === 'valid');
+const toast = useToast();
 
 const validateOpenAPIStructure = (jsonData: any): boolean => {
     // Check required OpenAPI structure fields
@@ -65,8 +68,36 @@ const handleFileContent = (data: { file: File, content: string }) => {
 const submitImport = () => {
     if (!isValidFile.value) return;
     
-    // TODO: Implement API import logic
-    console.log('Importing API from file:', uploadedFile.value);
+    const formData = new FormData();
+    formData.append('file', uploadedFile.value);
+
+    axios.post(route('api.import'), formData, {
+        headers: {
+            'Content-Type': 'multipart/form-data'
+        }
+    })
+    .then(response => {
+        const result = response.data;
+        emit('update:visible', false);
+        
+        // Show success toast
+        toast.add({
+            severity: 'success',
+            summary: 'Import Successful',
+            detail: `Successfully imported ${result.data.success.length} endpoints`,
+            life: 3000
+        });
+
+        // Refresh the API list if needed
+        if (typeof window?.reloadApis === 'function') {
+            window.reloadApis();
+        }
+    })
+    .catch(error => {
+        const message = error.response?.data?.message || 'Failed to import API';
+        validationError.value = message;
+        validationStatus.value = 'invalid';
+    });
 };
 
 const showDownloadPanel = (event: Event) => {
