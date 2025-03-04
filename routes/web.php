@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\ApiController;
+use App\Http\Controllers\RequestController;
 use App\Http\Controllers\ProfileController;
 use App\Models\Api;
 use Illuminate\Foundation\Application;
@@ -61,7 +62,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::get('/{api}', [ApiController::class, 'show'])->name('show');
 
             // New route to call external endpoints via the backend
-            Route::post('/{api}/call-endpoint', [ApiController::class, 'callEndpoint'])
+            Route::post('/{api}/call-endpoint', [RequestController::class, 'callEndpoint'])
                 ->middleware(['api.status', 'api.access', 'api.rateLimit'])
                 ->name('call-endpoint');
         });
