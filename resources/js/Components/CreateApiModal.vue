@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import Dialog from 'primevue/dialog';
 import Button from 'primevue/button';
-import { Link } from '@inertiajs/vue3';
+import { Link, router } from '@inertiajs/vue3';
 import FileUploadZone from '@/Components/FileUploadZone.vue';
 import Message from 'primevue/message';
 import OverlayPanel from 'primevue/overlaypanel';
@@ -19,41 +19,66 @@ const emit = defineEmits<{
 }>();
 
 const onHide = () => {
+    resetState();
     emit('update:visible', false);
 };
 
 const showFileUpload = ref(false);
-const uploadedFile = ref(null);
+const uploadedFile = ref<File | null>(null);
 const fileContent = ref('');
 const validationError = ref('');
 const validationStatus = ref<'idle' | 'valid' | 'invalid'>('idle');
 const overlayPanel = ref();
 const isValidFile = computed(() => uploadedFile.value !== null && validationStatus.value === 'valid');
 const toast = useToast();
+const isSubmitting = ref(false);
+
+// Reset state when modal visibility changes
+watch(() => props.visible, (newValue) => {
+    if (!newValue) {
+        resetState();
+    }
+});
+
+const resetState = () => {
+    showFileUpload.value = false;
+    uploadedFile.value = null;
+    fileContent.value = '';
+    validationError.value = '';
+    validationStatus.value = 'idle';
+    isSubmitting.value = false;
+};
 
 const validateOpenAPIStructure = (jsonData: any): boolean => {
-    // Check required OpenAPI structure fields
-    const isValid = 
-        typeof jsonData === 'object' &&
-        jsonData.openapi && 
-        jsonData.info && 
-        jsonData.info.title &&
-        jsonData.info.version &&
-        jsonData.paths &&
-        Object.keys(jsonData.paths).length > 0;
+    try {
+        // Check required OpenAPI structure fields
+        const isValid = 
+            typeof jsonData === 'object' &&
+            jsonData.openapi && 
+            jsonData.info && 
+            jsonData.info.title &&
+            jsonData.info.version &&
+            jsonData.paths &&
+            Object.keys(jsonData.paths).length > 0;
 
-    if (!isValid) {
-        validationError.value = 'Invalid OpenAPI format. The file must be a valid OpenAPI 3.0 specification.';
+        if (!isValid) {
+            validationError.value = 'Invalid OpenAPI format. The file must be a valid OpenAPI 3.0 specification.';
+            validationStatus.value = 'invalid';
+        } else {
+            validationError.value = '';
+            validationStatus.value = 'valid';
+        }
+        
+        return isValid;
+    } catch (error) {
+        validationError.value = 'Error validating OpenAPI structure';
         validationStatus.value = 'invalid';
-    } else {
-        validationError.value = '';
-        validationStatus.value = 'valid';
+        return false;
     }
-    
-    return isValid;
 };
 
 const handleFileContent = (data: { file: File, content: string }) => {
+    uploadedFile.value = data.file;
     fileContent.value = data.content;
     
     try {
@@ -65,39 +90,50 @@ const handleFileContent = (data: { file: File, content: string }) => {
     }
 };
 
-const submitImport = () => {
-    if (!isValidFile.value) return;
+const submitImport = async () => {
+    if (!isValidFile.value || isSubmitting.value) return;
     
+    isSubmitting.value = true;
     const formData = new FormData();
-    formData.append('file', uploadedFile.value);
+    formData.append('file', uploadedFile.value as File);
 
-    axios.post(route('api.import'), formData, {
-        headers: {
-            'Content-Type': 'multipart/form-data'
-        }
-    })
-    .then(response => {
+    try {
+        const response = await axios.post(route('api.import'), formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data'
+            }
+        });
+
         const result = response.data;
-        emit('update:visible', false);
         
-        // Show success toast
         toast.add({
             severity: 'success',
             summary: 'Import Successful',
-            detail: `Successfully imported ${result.data.success.length} endpoints`,
+            detail: `Successfully imported ${result.data.success.length} endpoints${result.data.failed.length ? ` (${result.data.failed.length} failed)` : ''}`,
             life: 3000
         });
 
-        // Refresh the API list if needed
-        if (typeof window?.reloadApis === 'function') {
-            window.reloadApis();
-        }
-    })
-    .catch(error => {
-        const message = error.response?.data?.message || 'Failed to import API';
+        // Close modal and refresh page
+        emit('update:visible', false);
+        router.reload();
+        
+    } catch (error) {
+        const message = axios.isAxiosError(error) 
+            ? error.response?.data?.message || 'Failed to import API'
+            : 'An unexpected error occurred';
+            
         validationError.value = message;
         validationStatus.value = 'invalid';
-    });
+        
+        toast.add({
+            severity: 'error',
+            summary: 'Import Failed',
+            detail: message,
+            life: 5000
+        });
+    } finally {
+        isSubmitting.value = false;
+    }
 };
 
 const showDownloadPanel = (event: Event) => {
@@ -107,7 +143,7 @@ const showDownloadPanel = (event: Event) => {
 
 <template>
     <Dialog :visible="visible" 
-        @update:visible="(value) => emit('update:visible', value)" 
+        @update:visible="onHide" 
         modal 
         header="Create New API"
         :style="{ width: '42rem' }" 
@@ -231,6 +267,7 @@ const showDownloadPanel = (event: Event) => {
                         label="Import API" 
                         icon="pi pi-check" 
                         :disabled="!isValidFile"
+                        :loading="isSubmitting"
                         @click="submitImport"
                     />
                 </div>

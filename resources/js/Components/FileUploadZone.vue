@@ -193,7 +193,10 @@ const formatFileSize = (bytes: number): string => {
                     <div class="text-sm font-medium">{{ modelValue.name }}</div>
                     <div class="text-xs text-gray-500">{{ formatFileSize(modelValue.size) }}</div>
                 </div>
-                <Button icon="pi pi-times" severity="secondary" text @click="handleFileRemove({ file: modelValue })" />
+                <button class="w-10 h-10 rounded-full hover:bg-gray-200 transition-colors duration-200 focus:outline-none"
+                    @click="handleFileRemove({ file: modelValue })">
+                    <i class="pi pi-times text-gray-500 hover:text-gray-700"></i>
+                </button>
             </div>
         </div>
 
