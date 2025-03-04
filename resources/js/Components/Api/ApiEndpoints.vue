@@ -41,6 +41,18 @@ const getMethodSeverity = (method) => {
   return severities[method] || 'info';
 };
 
+// Return custom classes for method tags to make them more vibrant
+const getMethodClass = (method) => {
+  const classes = {
+    GET: 'bg-emerald-100 text-emerald-800 border-emerald-200 font-medium',
+    POST: 'bg-blue-100 text-blue-800 border-blue-200 font-medium',
+    PUT: 'bg-amber-100 text-amber-800 border-amber-200 font-medium',
+    DELETE: 'bg-red-100 text-red-800 border-red-200 font-medium',
+    PATCH: 'bg-violet-100 text-violet-800 border-violet-200 font-medium'
+  };
+  return classes[method] || '';
+};
+
 const openDrawer = (endpoint) => {
   selectedEndpoint.value = endpoint;
   drawerVisible.value = true;
@@ -79,7 +91,7 @@ const handleDelete = async () => {
 </script>
 
 <template>
-  <Card class="shadow-lg">
+  <Card class="shadow-lg hover:shadow-xl transition-shadow duration-200">
     <template #title>
       <div class="flex items-center gap-2 mb-4">
         <i class="pi pi-list text-blue-500"></i>
@@ -117,13 +129,26 @@ const handleDelete = async () => {
               text
               rounded
               class="p-1"
+              :class="expanded ? 'text-blue-600' : 'text-gray-500'"
             />
           </template>
         </Column>
 
-        <Column field="method" header="Method" style="width: 7rem">
+        <Column field="method" header="Method" style="width: 8rem">
           <template #body="{ data }">
-            <Tag :value="data.method" :severity="getMethodSeverity(data.method)" />
+            <div class="flex items-center gap-2">
+              <Tag 
+                :value="data.method" 
+                :severity="getMethodSeverity(data.method)"
+                :class="getMethodClass(data.method)"
+              />
+              <Tag
+                v-if="data.isNew"
+                value="New"
+                severity="info"
+                class="text-xs bg-blue-50 text-blue-700 border border-blue-200"
+              />
+            </div>
           </template>
         </Column>
 
@@ -135,19 +160,19 @@ const handleDelete = async () => {
 
         <Column field="path" header="Path">
           <template #body="{ data }">
-            <code class="px-2 py-1 bg-gray-100 rounded text-sm">{{ data.path }}</code>
+            <code class="px-3 py-1.5 bg-gray-50 rounded-md text-sm border border-gray-100">{{ data.path }}</code>
           </template>
         </Column>
 
         <Column style="width: 6rem">
           <template #body="{ data }">
-            <div class="flex gap-1">
+            <div class="flex gap-1 justify-end">
               <Button
                 icon="pi pi-code"
                 text
                 rounded
                 @click="openDrawer(data)"
-                class="p-1"
+                class="p-1 text-indigo-500 hover:bg-indigo-50"
                 v-tooltip.top="'Test Endpoint'"
               />
               
@@ -168,14 +193,20 @@ const handleDelete = async () => {
         </Column>
 
         <template #expansion="slotProps">
-          <div class="p-6 space-y-4 bg-gray-50">
-            <div class="bg-white p-4 rounded-lg shadow-sm">
-              <h4 class="text-sm font-medium text-gray-500">Description</h4>
-              <p class="mt-2 text-gray-900">{{ slotProps.data.description }}</p>
+          <div class="p-6 space-y-4 bg-gray-50/70">
+            <div class="bg-white p-5 rounded-lg shadow-sm border border-gray-100">
+              <h4 class="text-sm font-medium text-gray-500 flex items-center gap-2 mb-2">
+                <i class="pi pi-file-edit text-indigo-500"></i>
+                Description
+              </h4>
+              <p class="text-gray-900">{{ slotProps.data.description }}</p>
             </div>
 
-            <div v-if="slotProps.data.parameters?.length" class="bg-white p-4 rounded-lg shadow-sm">
-              <h4 class="text-sm font-medium text-gray-500 mb-4">Parameters</h4>
+            <div v-if="slotProps.data.parameters?.length" class="bg-white p-5 rounded-lg shadow-sm border border-gray-100">
+              <h4 class="text-sm font-medium text-gray-500 flex items-center gap-2 mb-3">
+                <i class="pi pi-list text-emerald-500"></i>
+                Parameters
+              </h4>
               <DataTable 
                 :value="slotProps.data.parameters" 
                 class="text-sm"
@@ -188,7 +219,7 @@ const handleDelete = async () => {
                 </Column>
                 <Column field="type" header="Type">
                   <template #body="{ data }">
-                    <code class="px-2 py-1 bg-gray-100 rounded text-xs">{{ data.type }}</code>
+                    <code class="px-2 py-1 bg-gray-50 rounded-md text-xs border border-gray-100">{{ data.type }}</code>
                   </template>
                 </Column>
                 <Column field="required" header="Required">
@@ -196,6 +227,7 @@ const handleDelete = async () => {
                     <Tag 
                       :severity="data.required ? 'danger' : 'info'" 
                       :value="data.required ? 'Required' : 'Optional'"
+                      :class="data.required ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-blue-50 text-blue-700 border border-blue-200'"
                       class="text-xs"
                     />
                   </template>
@@ -271,6 +303,12 @@ const handleDelete = async () => {
 
 :deep(.p-button.p-button-text.p-button-danger:hover) {
   background: rgb(254 242 242);
+}
+
+/* Card styles */
+:deep(.p-card) {
+  border-radius: 0.75rem;
+  overflow: hidden;
 }
 
 /* Dialog styles */

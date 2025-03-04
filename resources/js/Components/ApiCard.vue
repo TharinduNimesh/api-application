@@ -36,7 +36,9 @@ const displayStatus = computed(() =>
 );
 
 const cardClass = computed(() => ({
-    'opacity-75': props.status === 'INACTIVE'
+    'opacity-75': props.status === 'INACTIVE',
+    'border-emerald-100 hover:border-emerald-300': props.status === 'ACTIVE' && props.type === 'FREE',
+    'border-amber-100 hover:border-amber-300': props.status === 'ACTIVE' && props.type === 'PAID',
 }));
 
 const handleActivate = () => {
@@ -53,11 +55,27 @@ const handleAction = (e: Event) => {
     // Prevent card click when clicking action buttons
     e.stopPropagation();
 };
+
+// Get appropriate icon colors for better visual distinction
+const getIconColorClass = (iconType: string) => {
+    if (props.status === 'INACTIVE') {
+        return 'text-gray-400';
+    }
+    
+    const colorMap: Record<string, string> = {
+        link: props.type === 'FREE' ? 'text-emerald-500' : 'text-amber-500',
+        calendar: 'text-indigo-400',
+        info: 'text-blue-500',
+        code: 'text-violet-500'
+    };
+    
+    return colorMap[iconType] || 'text-gray-400';
+};
 </script>
 
 <template>
     <div 
-        class="relative flex flex-col min-h-[320px] bg-white border border-gray-100 rounded-xl transition-all duration-200 hover:shadow-lg hover:border-gray-200 hover:-translate-y-1 cursor-pointer"
+        class="relative flex flex-col min-h-[320px] bg-white border rounded-xl transition-all duration-200 hover:shadow-lg hover:-translate-y-1 cursor-pointer"
         :class="cardClass"
         @click="navigateToApi"
     >
@@ -83,11 +101,11 @@ const handleAction = (e: Event) => {
             </p>
             <div class="flex justify-between items-center text-sm text-gray-500">
                 <div class="flex items-center gap-2 bg-gray-50 px-3 py-1.5 rounded-full">
-                    <i class="pi pi-link text-gray-400" />
+                    <i class="pi pi-link" :class="getIconColorClass('link')" />
                     <span class="font-medium">{{ endpointCount }} Endpoints</span>
                 </div>
                 <div class="flex items-center gap-2">
-                    <i class="pi pi-calendar text-gray-400" />
+                    <i class="pi pi-calendar" :class="getIconColorClass('calendar')" />
                     <span>{{ new Date(createdAt).toLocaleDateString() }}</span>
                 </div>
             </div>
@@ -95,22 +113,24 @@ const handleAction = (e: Event) => {
 
         <!-- Footer -->
         <div class="mt-auto p-6 pt-4 border-t border-gray-50">
-            <div class="flex items-center justify-between" @click="handleAction">
+            <div class="flex items-center justify-end" @click="handleAction">
                 <!-- Utility buttons -->
-                <div class="flex gap-1">
+                <!-- <div class="flex gap-1">
                     <button
-                        class="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-full transition-colors"
+                        class="p-2 hover:bg-gray-50 rounded-full transition-colors"
+                        :class="status === 'INACTIVE' ? 'text-gray-400 hover:text-gray-600' : 'text-blue-500 hover:text-blue-600 hover:bg-blue-50'"
                         v-tooltip.top="'View Documentation'"
                     >
                         <i class="pi pi-info-circle" />
                     </button>
                     <button
-                        class="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-full transition-colors"
+                        class="p-2 hover:bg-gray-50 rounded-full transition-colors"
+                        :class="status === 'INACTIVE' ? 'text-gray-400 hover:text-gray-600' : 'text-violet-500 hover:text-violet-600 hover:bg-violet-50'"
                         v-tooltip.top="'Code Examples'"
                     >
                         <i class="pi pi-code" />
                     </button>
-                </div>
+                </div> -->
 
                 <!-- Action buttons -->
                 <div class="flex gap-2">

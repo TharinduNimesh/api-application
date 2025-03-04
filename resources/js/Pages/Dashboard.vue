@@ -10,6 +10,8 @@ import axios from 'axios';
 import ProgressSpinner from 'primevue/progressspinner';
 import { useToast } from "primevue/usetoast";
 import type { Api as ApiType } from '@/types/api';
+import CreateApiModal from "@/Components/CreateApiModal.vue";
+import Button from "primevue/button";
 
 type SortableFields = keyof Pick<ApiType, 'name' | 'createdAt'>;
 
@@ -164,6 +166,8 @@ const handleActivateApi = async (apiId: string) => {
         });
     }
 };
+
+const showCreateModal = ref(false);
 </script>
 
 <template>
@@ -230,17 +234,16 @@ const handleActivateApi = async (apiId: string) => {
           >
             Available APIs
           </h2>
-          <Link
-            :href="route('api.create')"
-            v-if="$page.props.auth.user.role === 'admin'"
-          >
+          <div v-if="$page.props.auth.user.role === 'admin'">
             <Button
               label="Create New API"
               icon="pi pi-plus"
               severity="contrast"
               class="font-medium"
+              @click="showCreateModal = true"
             />
-          </Link>
+            <CreateApiModal v-model:visible="showCreateModal" />
+          </div>
         </div>
 
         <!-- Replace old filters with new component -->
