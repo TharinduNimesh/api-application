@@ -85,6 +85,11 @@ const navigationItems = computed(() => [
     icon: "pi pi-users",
     route: "users.index",
   },
+  {
+    label: "Departments",
+    icon: "pi pi-building",
+    route: "departments.index",
+  },
 ]);
 
 const isCurrentRoute = (routeName: string) => {

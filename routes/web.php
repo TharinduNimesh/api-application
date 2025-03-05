@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\ApiController;
 use App\Http\Controllers\ApiImportController;
+use App\Http\Controllers\DepartmentController;
 use App\Http\Controllers\RequestController;
 use App\Http\Controllers\ProfileController;
 use App\Models\Api;
@@ -33,6 +34,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ]);
     })->middleware('isAdmin')->name('users.index');
 
+    // Department Routes
+    Route::group(['prefix' => 'departments', 'as' => 'departments.'], function () {
+        Route::get('/', [DepartmentController::class, 'index'])->name('index');
+        Route::post('/', [DepartmentController::class, 'store'])->name('store');
+        Route::get('/{department}', [DepartmentController::class, 'show'])->name('show');
+        Route::patch('/{department}/toggle-status', [DepartmentController::class, 'toggleStatus'])->name('toggle-status');
+    })->middleware('isAdmin');
+
     // API Routes
     Route::prefix('api')->name('api.')
         ->group(function () {
@@ -42,14 +51,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
                 Route::get('/create', function () {
                     return Inertia::render('Api/Create');
                 })->name('create');
-                
+
                 // Update edit route to include endpoints
                 Route::get('/{api}/edit', function (Api $api) {
                     return Inertia::render('Api/Edit', [
                         'api' => $api->load(['endpoints', 'endpoints.parameters']) // Load the endpoints relationship
                     ]);
                 })->name('edit');
-                
+
                 Route::post('/apis', [ApiController::class, 'create'])->name('store');
                 Route::patch('/{api}/archive', [ApiController::class, 'archive'])->name('archive');
                 Route::patch('/{api}/activate', [ApiController::class, 'activate'])->name('activate');
