@@ -40,6 +40,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/', [DepartmentController::class, 'store'])->name('store');
         Route::get('/{department}', [DepartmentController::class, 'show'])->name('show');
         Route::patch('/{department}/toggle-status', [DepartmentController::class, 'toggleStatus'])->name('toggle-status');
+        Route::patch('/{department}/api/{apiId}/rate-limit', [DepartmentController::class, 'updateRateLimit'])->name('update-rate-limit');
+        Route::post('/{department}/assign-user', [DepartmentController::class, 'assignUser'])->name('assign-user');
+        Route::delete('/{department}/user/{userId}', [DepartmentController::class, 'removeUser'])->name('remove-user');
+        Route::post('/{department}/assign-api', [DepartmentController::class, 'assignApi'])->name('assign-api');
+        Route::delete('/{department}/api/{apiId}', [DepartmentController::class, 'removeApi'])->name('remove-api');
     })->middleware('isAdmin');
 
     // API Routes

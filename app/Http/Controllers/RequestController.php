@@ -266,14 +266,24 @@ class RequestController extends Controller
      */
     private function executeRequest($endpoint, string $url, array $data): JsonResponse
     {
-        $client = new Client();
+        $urlParts = parse_url($url);
+        $clientConfig = [];
+        
+        // Only disable SSL verification for explicitly defined HTTP URLs
+        if (isset($urlParts['scheme']) && $urlParts['scheme'] === 'http') {
+            Log::warning('Making insecure HTTP request', ['url' => $url]);
+            $clientConfig['verify'] = false;
+        }
+    
+        $client = new Client($clientConfig);
         try {
             $options = $this->prepareRequestOptions($endpoint, $data);
 
             Log::debug('Making API request', [
                 'method' => $endpoint->method,
                 'url' => $url,
-                'options' => $options
+                'options' => $options,
+                'protocol' => $urlParts['scheme'] ?? 'unknown'
             ]);
 
             $response = $client->request($endpoint->method, $url, $options);

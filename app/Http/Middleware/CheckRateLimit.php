@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\Department;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
@@ -24,10 +25,22 @@ class CheckRateLimit
             return $next($request);
         }
 
+        // Get user's department and its API rate limit if exists
+        $department = Department::whereRaw([
+            'api_assignments.id' => $api->_id,
+            'user_assignments.userId' => $user->_id
+        ])->first();
+
         $rateLimitTime = 60 * 60; // 1 hour
         $key = 'api:' . $api->id . ':user:' . $user->id;
         
-        if (RateLimiter::tooManyAttempts($key, $api->rateLimit)) {
+        // Use department rate limit if exists, otherwise use API's default rate limit
+        $rateLimit = $department 
+            ? collect($department->api_assignments)
+                ->firstWhere('id', $api->_id)['permissions']['rate_limit'] ?? $api->rateLimit
+            : $api->rateLimit;
+        
+        if (RateLimiter::tooManyAttempts($key, $rateLimit)) {
             $seconds = RateLimiter::availableIn($key);
             return response()->json([
                 'status' => 429,
