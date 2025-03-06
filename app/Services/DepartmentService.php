@@ -32,8 +32,8 @@ class DepartmentService
 
         return $this->repository->create([
             ...$validated,
-            'user_assignments' => [],
-            'api_assignments' => $formattedApiAssignments,
+            'user_assignments' => [], // Make sure it's an empty array, not a JSON string
+            'api_assignments' => $formattedApiAssignments, // Store as actual array
             'is_active' => true,
             'created_by' => Auth::id()
         ]);

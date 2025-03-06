@@ -33,4 +33,9 @@ class Api extends Model
     {
         return $this->belongsTo(User::class, 'created_by');
     }
+
+    public function departments()
+    {
+        return $this->belongsToMany(Department::class, null, 'api_ids', 'department_ids');
+    }
 }

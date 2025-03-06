@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Api;
 use App\Models\Endpoint;
 use App\Http\Requests\CreateApiRequest;
+use App\Models\Department;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
@@ -43,12 +44,44 @@ class ApiController extends Controller
         $user = Auth::user();
         $query = Api::with('endpoints');
 
-        // If not admin, only show active APIs
-        if ($user->role !== 'admin') {
-            $query->where('is_active', true);
+        if ($user->role === 'admin') {
+            // Admin can see all APIs (both active and inactive)
+            $apis = $query->get();
+        } else {
+            // For non-admin users, get departments they belong to
+            $userDepartments = Department::where('user_assignments', 'elemMatch', ['userId' => $user->_id])->get();
+            
+            if ($userDepartments->isEmpty()) {
+                // User doesn't belong to any department
+                return response()->json([]);
+            }
+
+            // Collect all API IDs that the user has access to via their departments
+            $apiIds = [];
+            foreach ($userDepartments as $department) {
+                if (isset($department->api_assignments) && is_array($department->api_assignments)) {
+                    foreach ($department->api_assignments as $assignment) {
+                        if (isset($assignment['id'])) {
+                            $apiIds[] = $assignment['id'];
+                        }
+                    }
+                }
+            }
+
+            // Get unique API IDs
+            $apiIds = array_unique($apiIds);
+            
+            // Query APIs that are active and belong to user's departments
+            if (!empty($apiIds)) {
+                $apis = $query->where('is_active', true)
+                             ->whereIn('_id', $apiIds)
+                             ->get();
+            } else {
+                $apis = collect(); // Empty collection if no APIs found
+            }
         }
 
-        $apis = $query->get()->map(function($api) {
+        return response()->json($apis->map(function($api) {
             return [
                 'id' => $api->_id,
                 'name' => $api->name,
@@ -58,9 +91,7 @@ class ApiController extends Controller
                 'endpointCount' => $api->endpoints->count(),
                 'createdAt' => $api->created_at->format('Y-m-d')
             ];
-        });
-
-        return response()->json($apis);
+        }));
     }
 
     public function show(Api $api)

@@ -32,11 +32,22 @@ const loading = ref(true);
 const fetchApis = async () => {
   try {
     loading.value = true;
-    const response = await axios.get(route('api.list'));
+    const response = await axios.get(route('api.list'), {
+      headers: {
+        'Accept': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest'
+      }
+    });
     apis.value = response.data;
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error fetching APIs:', error);
-    // You might want to show an error toast here
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: 'Failed to load APIs. ' + (error?.response?.data?.message || 'Please try again later.'),
+      life: 5000
+    });
+    apis.value = []; // Reset APIs on error
   } finally {
     loading.value = false;
   }
