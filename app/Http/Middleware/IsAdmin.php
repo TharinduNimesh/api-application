@@ -16,7 +16,7 @@ class IsAdmin
     public function handle(Request $request, Closure $next): Response
     {
         if (!$request->user()->isAdmin()) {
-            abort(403, 'Unauthorized action.');
+            abort(403, 'Only administrators can access this resource.');
         }
         return $next($request);
     }

@@ -17,7 +17,7 @@ const handleSignOut = () => {
 </script>
 
 <template>
-    <Head title="403: Forbidden" />
+    <Head title="404: Not Found" />
 
     <main class="min-h-screen bg-gradient-to-br from-orange-50/80 to-white relative overflow-hidden">
         <!-- Background Patterns -->
@@ -28,38 +28,38 @@ const handleSignOut = () => {
             <div class="absolute bottom-0 left-0 right-0 h-40 bg-[radial-gradient(circle_at_1px_1px,rgba(237,137,54,0.12)_1px,transparent_0)] bg-[size:40px_40px] rotate-180"></div>
         </div>
 
-        <!-- Decorative Spaceships -->
+        <!-- Decorative Planets -->
         <div class="absolute inset-0 overflow-hidden pointer-events-none">
-            <!-- Large Spaceship -->
+            <!-- Large Planet -->
             <div class="absolute -right-20 top-20">
                 <img 
-                    src="/images/403/spaceship-1.png" 
-                    alt="Spaceship 1"
-                    class="w-[200px] h-[200px] object-contain opacity-30 animate-float-delayed rotate-12"
+                    src="/images/404/planet-1.png" 
+                    alt="Planet 1"
+                    class="w-[300px] h-[300px] object-contain opacity-30 animate-float-delayed"
                 />
             </div>
-            <!-- Medium Spaceship -->
+            <!-- Medium Planet -->
             <div class="absolute -left-10 bottom-40">
                 <img 
-                    src="/images/403/spaceship-2.png" 
-                    alt="Spaceship 2"
-                    class="w-[180px] h-[180px] object-contain opacity-20 animate-float -rotate-12"
+                    src="/images/404/planet-2.png" 
+                    alt="Planet 2"
+                    class="w-[200px] h-[200px] object-contain opacity-20 animate-float"
                 />
             </div>
-            <!-- Small Spaceship -->
+            <!-- Small Planet -->
             <div class="absolute right-40 bottom-20">
                 <img 
-                    src="/images/403/spaceship-3.png" 
-                    alt="Spaceship 3"
-                    class="w-[100px] h-[100px] object-contain opacity-25 animate-float-delayed-2 rotate-45"
+                    src="/images/404/planet-3.png" 
+                    alt="Planet 3"
+                    class="w-[100px] h-[100px] object-contain opacity-25 animate-float-delayed-2"
                 />
             </div>
-            <!-- Extra Small Spaceship -->
+            <!-- Extra Small Planet -->
             <div class="absolute left-1/4 top-32">
                 <img 
-                    src="/images/403/spaceship-4.png" 
-                    alt="Spaceship 4"
-                    class="w-[150px] h-[80px] object-contain opacity-20 animate-float -rotate-6"
+                    src="/images/404/planet-4.png" 
+                    alt="Planet 4"
+                    class="w-[150px] h-[80px] object-contain opacity-20 animate-float"
                 />
             </div>
         </div>
@@ -80,23 +80,23 @@ const handleSignOut = () => {
                     <!-- Main Image -->
                     <div class="relative w-full max-w-2xl">
                         <img 
-                            src="/images/403/astronaut-caught-by-aliens.png" 
-                            alt="Access Forbidden" 
-                            class="relative mx-auto h-80 w-auto mix-blend-multiply"
+                            src="/images/404/astronaut.png" 
+                            alt="Page Not Found" 
+                            class="relative mx-auto h-80 w-auto animate-float mix-blend-multiply"
                         />
                     </div>
 
                     <!-- Error Content -->
                     <div class="space-y-8">
                         <div class="relative">
-                            <span class="absolute -left-4 -top-4 text-[180px] font-bold text-orange-600/5">403</span>
-                            <h1 class="relative text-6xl font-bold text-orange-600">403</h1>
+                            <span class="absolute -left-4 -top-4 text-[180px] font-bold text-orange-600/5">404</span>
+                            <h1 class="relative text-6xl font-bold text-orange-600">404</h1>
                         </div>
 
                         <div class="space-y-3">
-                            <h2 class="text-2xl font-semibold text-gray-900">Access Forbidden</h2>
+                            <h2 class="text-2xl font-semibold text-gray-900">Page Not Found</h2>
                             <p class="mx-auto max-w-lg text-lg text-gray-600">
-                                {{ message || "Sorry, you don't have permission to access this resource. It seems aliens have restricted your access." }}
+                                {{ message || "Sorry, we couldn't find the page you're looking for. It seems to have floated away into space." }}
                             </p>
                         </div>
 
@@ -110,14 +110,6 @@ const handleSignOut = () => {
                                     class="px-6"
                                 />
                             </Link>
-                            
-                            <Button 
-                                label="Sign in with different account" 
-                                icon="pi pi-user"
-                                text
-                                class="hover:bg-orange-50"
-                                @click="handleSignOut"
-                            />
                         </div>
                     </div>
                 </div>
@@ -163,6 +155,34 @@ const handleSignOut = () => {
     to {
         transform: rotate(360deg);
     }
+}
+
+.star-small {
+    height: 0.25rem;
+    width: 0.25rem;
+    border-radius: 9999px;
+    background-color: white;
+    box-shadow: 0 0 2px 1px rgba(255, 255, 255, 0.5);
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: .5;
+    }
+}
+
+:deep(.p-button.p-button-primary) {
+    background: #6366f1;
+    border-color: #6366f1;
+}
+
+:deep(.p-button.p-button-primary:hover) {
+    background: #4f46e5;
+    border-color: #4f46e5;
 }
 
 :deep(.p-button.p-button-warning) {
