@@ -67,8 +67,7 @@ defineProps<{
             <div
               class="relative rounded-full px-3 py-1 text-sm leading-6 text-gray-600 ring-1 ring-gray-900/10 hover:ring-gray-900/20"
             >
-              <span class="font-semibold text-orange-600">New</span> Try our
-              premium APIs free for 15 days
+              <span class="font-semibold text-orange-600">New</span> Access powerful APIs for your applications
             </div>
           </div>
           <h1
@@ -88,9 +87,7 @@ defineProps<{
           <p
             class="mt-3 max-w-md mx-auto text-base text-gray-600 sm:text-lg md:mt-5 md:text-xl md:max-w-3xl"
           >
-            Discover and integrate both free and premium APIs for your
-            applications. Start with a 15-day free trial to explore our premium
-            API collection.
+            Discover and integrate APIs for your applications. Find everything you need to build powerful, connected experiences.
           </p>
           <div class="mt-10 flex justify-center gap-x-6">
             <Link
@@ -98,7 +95,7 @@ defineProps<{
               class="transform transition hover:scale-105"
             >
               <Button
-                label="Try Premium for 15 Days"
+                label="Get Started"
                 severity="primary"
                 size="large"
                 class="px-8 py-3 shadow-xl shadow-orange-500/20"
@@ -109,7 +106,7 @@ defineProps<{
               class="transform transition hover:scale-105"
             >
               <Button
-                label="Browse Free APIs"
+                label="Browse APIs"
                 severity="secondary"
                 size="large"
                 class="px-8 py-3"

@@ -11,6 +11,11 @@ use Illuminate\Support\Facades\Log;
 class RequestController extends Controller
 {
     /**
+     * @var array Array of file streams that need to be closed after request
+     */
+    private array $fileStreams = [];
+
+    /**
      * Process and execute an API endpoint call
      *
      * @param Request $request The incoming request
@@ -19,6 +24,15 @@ class RequestController extends Controller
      */
     public function callEndpoint(Request $request, Api $api): JsonResponse
     {
+        // Check if there's an access error passed from middleware
+        if ($request->attributes->has('api_access_error')) {
+            $error = $request->attributes->get('api_access_error');
+            return response()->json([
+                'status' => $error['status'],
+                'error' => $error['message']
+            ], $error['status']);
+        }
+
         Log::debug('Starting API endpoint call', [
             'api_id' => $api->_id,
             'request_data' => $request->all()

@@ -25,27 +25,30 @@ Route::middleware(['auth', 'verified'])->group(function () {
         return Inertia::render('Dashboard');
     })->name('dashboard');
 
-    // Users Route
-    Route::get('/users', function () {
-        return Inertia::render('Users/Index', [
-            'users' => User::select('id', 'name', 'email', 'role', 'created_at')
-                ->orderBy('created_at', 'desc')
-                ->get()
-        ]);
-    })->middleware('isAdmin')->name('users.index');
+    // Admin only routes
+    Route::middleware(['isAdmin'])->group(function () {
+        // Users Route
+        Route::get('/users', function () {
+            return Inertia::render('Users/Index', [
+                'users' => User::select('id', 'name', 'email', 'role', 'created_at')
+                    ->orderBy('created_at', 'desc')
+                    ->get()
+            ]);
+        })->name('users.index');
 
-    // Department Routes
-    Route::group(['prefix' => 'departments', 'as' => 'departments.'], function () {
-        Route::get('/', [DepartmentController::class, 'index'])->name('index');
-        Route::post('/', [DepartmentController::class, 'store'])->name('store');
-        Route::get('/{department}', [DepartmentController::class, 'show'])->name('show');
-        Route::patch('/{department}/toggle-status', [DepartmentController::class, 'toggleStatus'])->name('toggle-status');
-        Route::patch('/{department}/api/{apiId}/rate-limit', [DepartmentController::class, 'updateRateLimit'])->name('update-rate-limit');
-        Route::post('/{department}/assign-user', [DepartmentController::class, 'assignUser'])->name('assign-user');
-        Route::delete('/{department}/user/{userId}', [DepartmentController::class, 'removeUser'])->name('remove-user');
-        Route::post('/{department}/assign-api', [DepartmentController::class, 'assignApi'])->name('assign-api');
-        Route::delete('/{department}/api/{apiId}', [DepartmentController::class, 'removeApi'])->name('remove-api');
-    })->middleware('isAdmin');
+        // Department Routes
+        Route::group(['prefix' => 'departments', 'as' => 'departments.'], function () {
+            Route::get('/', [DepartmentController::class, 'index'])->name('index');
+            Route::post('/', [DepartmentController::class, 'store'])->name('store');
+            Route::get('/{department}', [DepartmentController::class, 'show'])->name('show');
+            Route::patch('/{department}/toggle-status', [DepartmentController::class, 'toggleStatus'])->name('toggle-status');
+            Route::patch('/{department}/api/{apiId}/rate-limit', [DepartmentController::class, 'updateRateLimit'])->name('update-rate-limit');
+            Route::post('/{department}/assign-user', [DepartmentController::class, 'assignUser'])->name('assign-user');
+            Route::delete('/{department}/user/{userId}', [DepartmentController::class, 'removeUser'])->name('remove-user');
+            Route::post('/{department}/assign-api', [DepartmentController::class, 'assignApi'])->name('assign-api');
+            Route::delete('/{department}/api/{apiId}', [DepartmentController::class, 'removeApi'])->name('remove-api');
+        });
+    });
 
     // API Routes
     Route::prefix('api')->name('api.')
@@ -74,7 +77,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
                 Route::patch('/{api}/endpoints/{endpoint}', [ApiController::class, 'updateEndpoint'])
                     ->name('endpoints.update');
             });
-            Route::get('/{api}', [ApiController::class, 'show'])->name('show');
+
+            // Add api.access middleware to protect the show route
+            Route::get('/{api}', [ApiController::class, 'show'])
+                ->middleware(['web', 'api.status', 'api.access'])
+                ->name('show');
 
             // New route to call external endpoints via the backend
             Route::post('/{api}/call-endpoint', [RequestController::class, 'callEndpoint'])

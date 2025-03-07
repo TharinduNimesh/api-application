@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 use Inertia\Middleware;
 
 class HandleInertiaRequests extends Middleware
@@ -35,5 +36,21 @@ class HandleInertiaRequests extends Middleware
                 'user' => $request->user(),
             ],
         ];
+    }
+
+    /**
+     * Handle the incoming request.
+     */
+    public function handle(Request $request, \Closure $next)
+    {
+        if ($request->attributes->has('api_access_error')) {
+            $error = $request->attributes->get('api_access_error');
+            return Inertia::render('Error/Forbidden', [
+                'status' => $error['status'],
+                'message' => $error['message']
+            ])->toResponse($request);
+        }
+
+        return parent::handle($request, $next);
     }
 }

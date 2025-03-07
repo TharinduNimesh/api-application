@@ -9,7 +9,6 @@ import BlobBackground from '@/Components/Background/BlobBackground.vue';
             <BlobBackground />
             <div class="relative z-10">
                 <AppHeader />
-
                 <!-- Page Content -->
                 <main class="p-5 sm:p-0">
                     <slot />

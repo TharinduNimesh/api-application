@@ -44,10 +44,13 @@ class User extends Authenticatable
     {
         return $this->hasMany(Api::class, 'created_by');
     }
-
-    public function isOnTrial(): bool
+    
+    /**
+     * User's departments
+     */
+    public function departments()
     {
-        return $this->created_at->diffInDays(now()) <= 15;
+        return $this->belongsToMany(Department::class, null, 'user_ids', 'department_ids');
     }
 
     /**

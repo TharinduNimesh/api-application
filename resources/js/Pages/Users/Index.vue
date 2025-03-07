@@ -11,7 +11,6 @@ import Dropdown from "primevue/dropdown";
 interface UserFilters {
   search: string;
   role: string;
-  trialStatus: string;
 }
 
 interface User {
@@ -29,7 +28,6 @@ const props = defineProps<{
 const filters = ref<UserFilters>({
   search: "",
   role: "ALL",
-  trialStatus: "ALL",
 });
 
 const roleOptions = [
@@ -37,19 +35,6 @@ const roleOptions = [
   { label: "Admin", value: "admin" },
   { label: "User", value: "user" },
 ];
-
-const trialOptions = [
-  { label: "All Users", value: "ALL" },
-  { label: "Trial Active", value: "TRIAL" },
-  { label: "Trial Expired", value: "EXPIRED" },
-];
-
-const isInTrialPeriod = (createdAt: string) => {
-  const trialPeriod = 15 * 24 * 60 * 60 * 1000; // 15 days in milliseconds
-  const creationDate = new Date(createdAt).getTime();
-  const now = Date.now();
-  return now - creationDate < trialPeriod;
-};
 
 const filteredUsers = computed(() => {
   return props.users.filter((user) => {
@@ -60,19 +45,7 @@ const filteredUsers = computed(() => {
     const matchesRole =
       filters.value.role === "ALL" || user.role === filters.value.role;
 
-    // Modified trial status filtering:
-    let matchesTrialStatus = false;
-    if (filters.value.trialStatus === "ALL") {
-      matchesTrialStatus = true;
-    } else if (user.role === "admin") {
-      matchesTrialStatus = false;
-    } else if (filters.value.trialStatus === "TRIAL") {
-      matchesTrialStatus = isInTrialPeriod(user.created_at);
-    } else if (filters.value.trialStatus === "EXPIRED") {
-      matchesTrialStatus = !isInTrialPeriod(user.created_at);
-    }
-
-    return matchesSearch && matchesRole && matchesTrialStatus;
+    return matchesSearch && matchesRole;
   });
 });
 
@@ -87,23 +60,11 @@ const getSeverity = (role: string) => {
   }
 };
 
-const getTrialStatus = (user: User) => {
-  if (user.role === 'admin') return null;
-  
-  if (isInTrialPeriod(user.created_at)) {
-    return { label: "Trial Active", severity: "success" };
-  }
-  return { label: "Trial Expired", severity: "warning" };
-};
-
 const emptyMessage = computed(() => {
     // If there are users but none match the filters
     if (props.users.length > 0 && filteredUsers.value.length === 0) {
         if (filters.value.search) {
             return `No users found matching "${filters.value.search}"`;
-        }
-        if (filters.value.trialStatus !== 'ALL') {
-            return `No ${filters.value.trialStatus.toLowerCase()} users found`;
         }
         if (filters.value.role !== 'ALL') {
             return `No ${filters.value.role.toLowerCase()} users found`;
@@ -133,7 +94,7 @@ const emptyMessage = computed(() => {
         <div
           class="mb-6 bg-white p-4 rounded-lg shadow-sm border border-gray-200"
         >
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <InputGroup class="w-full">
               <InputGroupAddon>
                 <i class="pi pi-search text-gray-400"></i>
@@ -150,14 +111,6 @@ const emptyMessage = computed(() => {
               optionLabel="label"
               optionValue="value"
               placeholder="Select Role"
-              class="w-full"
-            />
-            <Dropdown
-              v-model="filters.trialStatus"
-              :options="trialOptions"
-              optionLabel="label"
-              optionValue="value"
-              placeholder="Trial Status"
               class="w-full"
             />
           </div>
@@ -178,12 +131,12 @@ const emptyMessage = computed(() => {
                 <div class="text-center py-8">
                     <i class="pi pi-users text-gray-300 text-5xl mb-4"></i>
                     <p class="text-gray-500">{{ emptyMessage }}</p>
-                    <div v-if="filters.search || filters.role !== 'ALL' || filters.trialStatus !== 'ALL'" class="mt-2">
+                    <div v-if="filters.search || filters.role !== 'ALL'" class="mt-2">
                         <Button
                             label="Clear Filters"
                             severity="secondary"
                             text
-                            @click="filters = { search: '', role: 'ALL', trialStatus: 'ALL' }"
+                            @click="filters = { search: '', role: 'ALL' }"
                         />
                     </div>
                 </div>
@@ -191,15 +144,7 @@ const emptyMessage = computed(() => {
 
             <Column field="name" header="Name" sortable>
               <template #body="slotProps">
-                <div class="flex flex-col gap-1">
-                  <div class="font-medium">{{ slotProps.data.name }}</div>
-                  <Tag
-                    v-if="getTrialStatus(slotProps.data)"
-                    :value="getTrialStatus(slotProps.data)?.label"
-                    :severity="getTrialStatus(slotProps.data)?.severity"
-                    size="small"
-                  />
-                </div>
+                <div class="font-medium">{{ slotProps.data.name }}</div>
               </template>
             </Column>
             <Column field="email" header="Email" sortable />

@@ -11,6 +11,11 @@ class DepartmentRepository
 {
     public function getAll(): Collection
     {
+        return Department::where('is_active', true)->get();
+    }
+
+    public function getAllWithInactive(): Collection
+    {
         return Department::all();
     }
 
@@ -50,5 +55,24 @@ class DepartmentRepository
     public function updateDepartment(Department $department): bool
     {
         return $department->save();
+    }
+
+    public function findActiveDepartmentByUser(string $userId): ?Department
+    {
+        return Department::where('is_active', true)
+            ->whereRaw(['user_assignments.userId' => $userId])
+            ->first();
+    }
+
+    public function getActiveApisForDepartment(Department $department): Collection
+    {
+        if (!$department->is_active) {
+            return collect([]);
+        }
+        
+        $assignedApiIds = collect($department->api_assignments)->pluck('id')->toArray();
+        return Api::whereIn('_id', $assignedApiIds)
+            ->where('is_active', true)
+            ->get();
     }
 }

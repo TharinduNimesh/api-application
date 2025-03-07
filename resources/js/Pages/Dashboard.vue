@@ -24,7 +24,6 @@ interface ApiFilters {
 }
 
 const apis = ref<ApiType[]>([]);
-
 // Add loading state
 const loading = ref(true);
 
@@ -59,6 +58,7 @@ onMounted(() => {
 });
 
 const page = usePage();
+
 // Update the filters ref
 const filters = ref<ApiFilters>({
   search: "",
@@ -119,38 +119,6 @@ const onPageChange = (event: { first: number; rows: number; page: number }) => {
   pagination.value.rows = event.rows;
 };
 
-// Add new ref for local dismissal state
-const isDismissed = ref(localStorage.getItem("trialDismissed") === "true");
-
-// Add computed for trial banner visibility
-const showTrialBanner = computed(() => {
-  try {
-    // Only show for normal users
-    if (page.props.auth.user.role === "admin") {
-      return false;
-    }
-
-    // Calculate trial period (15 days)
-    const trialPeriod = 15 * 24 * 60 * 60 * 1000; // 15 days in milliseconds
-    const accountCreationDate = new Date(page.props.auth.user.created_at).getTime();
-    const trialEndDate = accountCreationDate + trialPeriod;
-    
-    // Check if still within trial period
-    const isWithinTrialPeriod = Date.now() < trialEndDate;
-
-    // Use reactive ref instead of directly checking localStorage
-    return isWithinTrialPeriod && !isDismissed.value;
-  } catch (error) {
-    console.error('Error checking trial banner status:', error);
-    return false;
-  }
-});
-
-const dismissTrial = () => {
-  localStorage.setItem("trialDismissed", "true");
-  isDismissed.value = true;
-};
-
 const hasApis = computed(() => apis.value.length > 0);
 const hasFilteredResults = computed(() => filteredApis.value.length > 0);
 const isAdmin = computed(() => page.props.auth.user.role === 'admin');
@@ -185,58 +153,6 @@ const showCreateModal = ref(false);
   <Head title="Dashboard" />
 
   <AuthenticatedLayout>
-    <!-- Trial Notification Banner -->
-    <Transition
-      enter-active-class="transition ease-out duration-200"
-      enter-from-class="transform opacity-0 -translate-y-1"
-      enter-to-class="transform opacity-100 translate-y-0"
-      leave-active-class="transition ease-in duration-150"
-      leave-from-class="transform opacity-100 translate-y-0"
-      leave-to-class="transform opacity-0 -translate-y-1"
-    >
-      <div
-        v-if="showTrialBanner"
-        class="mt-5 max-w-7xl mx-auto relative isolate flex items-center gap-x-6 overflow-hidden bg-gradient-to-r from-orange-50 to-orange-100 px-6 py-2.5 sm:px-3.5 sm:before:flex-1 rounded-lg"
-      >
-        <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
-          <p class="text-sm leading-6 text-gray-700">
-            <strong class="font-semibold text-orange-500"
-              >Welcome to APIForge!</strong
-            >
-            <svg
-              viewBox="0 0 2 2"
-              class="mx-2 inline h-0.5 w-0.5 fill-current"
-              aria-hidden="true"
-            >
-              <circle cx="1" cy="1" r="1" />
-            </svg>
-            Enjoy full access to all PAID APIs free for 15 days.
-          </p>
-          <Button
-            label="Got it"
-            size="small"
-            severity="warning"
-            text
-            @click="dismissTrial"
-            class="font-semibold"
-          />
-        </div>
-        <div class="flex flex-1 justify-end">
-          <button
-            type="button"
-            class="-m-3 p-3 focus-visible:outline-offset-[-4px]"
-            @click="dismissTrial"
-          >
-            <span class="sr-only">Dismiss</span>
-            <i
-              class="pi pi-times text-gray-400 hover:text-gray-600"
-              aria-hidden="true"
-            ></i>
-          </button>
-        </div>
-      </div>
-    </Transition>
-
     <div class="py-7">
       <div class="mx-auto max-w-7xl sm:px-6 lg:px-8">
         <div class="flex justify-between items-center mb-5">

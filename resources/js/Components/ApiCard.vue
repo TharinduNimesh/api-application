@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { Link, usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
-import { router } from '@inertiajs/vue3';
 
 interface ApiProps {
     name: string;
@@ -47,10 +46,6 @@ const handleActivate = () => {
     }
 };
 
-const navigateToApi = () => {
-    router.visit(route('api.show', props.id));
-};
-
 const handleAction = (e: Event) => {
     // Prevent card click when clicking action buttons
     e.stopPropagation();
@@ -74,10 +69,11 @@ const getIconColorClass = (iconType: string) => {
 </script>
 
 <template>
-    <div 
+    <Link 
+        :href="route('api.show', props.id)"
         class="relative flex flex-col min-h-[320px] bg-white border rounded-xl transition-all duration-200 hover:shadow-lg hover:-translate-y-1 cursor-pointer"
         :class="cardClass"
-        @click="navigateToApi"
+        preserve-scroll
     >
         <!-- Header -->
         <div class="flex items-center justify-between p-6 border-b border-gray-50">
@@ -99,6 +95,7 @@ const getIconColorClass = (iconType: string) => {
             <p class="text-gray-600 leading-relaxed mb-4">
                 {{ truncateText(description) }}
             </p>
+
             <div class="flex justify-between items-center text-sm text-gray-500">
                 <div class="flex items-center gap-2 bg-gray-50 px-3 py-1.5 rounded-full">
                     <i class="pi pi-link" :class="getIconColorClass('link')" />
@@ -114,24 +111,6 @@ const getIconColorClass = (iconType: string) => {
         <!-- Footer -->
         <div class="mt-auto p-6 pt-4 border-t border-gray-50">
             <div class="flex items-center justify-end" @click="handleAction">
-                <!-- Utility buttons -->
-                <!-- <div class="flex gap-1">
-                    <button
-                        class="p-2 hover:bg-gray-50 rounded-full transition-colors"
-                        :class="status === 'INACTIVE' ? 'text-gray-400 hover:text-gray-600' : 'text-blue-500 hover:text-blue-600 hover:bg-blue-50'"
-                        v-tooltip.top="'View Documentation'"
-                    >
-                        <i class="pi pi-info-circle" />
-                    </button>
-                    <button
-                        class="p-2 hover:bg-gray-50 rounded-full transition-colors"
-                        :class="status === 'INACTIVE' ? 'text-gray-400 hover:text-gray-600' : 'text-violet-500 hover:text-violet-600 hover:bg-violet-50'"
-                        v-tooltip.top="'Code Examples'"
-                    >
-                        <i class="pi pi-code" />
-                    </button>
-                </div> -->
-
                 <!-- Action buttons -->
                 <div class="flex gap-2">
                     <template v-if="status === 'INACTIVE' && isAdmin">
@@ -144,19 +123,19 @@ const getIconColorClass = (iconType: string) => {
                         />
                     </template>
                     <template v-else>
-                        <Button 
-                            severity="primary"
-                            size="small"
-                            class="gap-2"
-                            :disabled="status === 'INACTIVE'"
-                            @click="navigateToApi"
+                        <Link 
+                            :href="route('api.show', props.id)"
+                            class="p-button p-button-primary p-button-sm gap-2"
+                            :class="{ 'p-disabled': status === 'INACTIVE' }"
+                            preserve-scroll
+                            as="button"
                         >
                             Use API
                             <i class="pi pi-arrow-right" />
-                        </Button>
+                        </Link>
                     </template>
                 </div>
             </div>
         </div>
-    </div>
+    </Link>
 </template>

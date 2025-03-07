@@ -253,8 +253,8 @@ class DepartmentService
             'name' => $department->name,
             'description' => $department->description,
             'is_active' => $department->is_active,
-            'api_assignments' => $this->formatApiAssignments($department),
-            'user_assignments' => $this->formatUserAssignments($department),
+            'api_assignments' => $department->is_active ? $this->formatApiAssignments($department) : [],
+            'user_assignments' => $department->is_active ? $this->formatUserAssignments($department) : [],
             'created_at' => $department->created_at,
             'created_by' => $department->created_by
         ];
@@ -262,19 +262,26 @@ class DepartmentService
 
     private function formatApiAssignments(Department $department): array
     {
+        if (!$department->is_active) {
+            return [];
+        }
+
         return collect($department->api_assignments)->map(function ($assignment) {
-            $api = Api::find($assignment['id']);
+            $api = Api::where('is_active', true)->find($assignment['id']);
+            if (!$api) {
+                return null;
+            }
             return [
                 'apiId' => $assignment['id'],
                 'api' => [
-                    'id' => $api?->_id,
-                    'name' => $api?->name,
-                    'type' => $api?->type,
-                    'description' => $api?->description
+                    'id' => $api->_id,
+                    'name' => $api->name,
+                    'type' => $api->type,
+                    'description' => $api->description
                 ],
                 'rateLimit' => $assignment['permissions']['rate_limit'] ?? 100
             ];
-        })->values()->all();
+        })->filter()->values()->all();
     }
 
     private function formatUserAssignments(Department $department): array

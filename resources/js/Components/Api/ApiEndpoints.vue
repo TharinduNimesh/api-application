@@ -166,7 +166,7 @@ const handleDelete = async () => {
 
         <Column style="width: 6rem">
           <template #body="{ data }">
-            <div class="flex gap-1 justify-end">
+            <div class="flex gap-1 justify-center">
               <Button
                 icon="pi pi-code"
                 text

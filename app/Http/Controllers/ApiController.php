@@ -12,6 +12,7 @@ use Illuminate\Http\JsonResponse;
 use Inertia\Inertia;
 use GuzzleHttp\Client; // make sure to install guzzlehttp/guzzle via Composer
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class ApiController extends Controller
 {
@@ -48,15 +49,17 @@ class ApiController extends Controller
             // Admin can see all APIs (both active and inactive)
             $apis = $query->get();
         } else {
-            // For non-admin users, get departments they belong to
-            $userDepartments = Department::where('user_assignments', 'elemMatch', ['userId' => $user->_id])->get();
+            // For non-admin users, get active departments they belong to
+            $userDepartments = Department::where('is_active', true)
+                ->where('user_assignments', 'elemMatch', ['userId' => $user->_id])
+                ->get();
             
             if ($userDepartments->isEmpty()) {
-                // User doesn't belong to any department
+                // User doesn't belong to any active department
                 return response()->json([]);
             }
 
-            // Collect all API IDs that the user has access to via their departments
+            // Collect all API IDs that the user has access to via their active departments
             $apiIds = [];
             foreach ($userDepartments as $department) {
                 if (isset($department->api_assignments) && is_array($department->api_assignments)) {
@@ -71,7 +74,7 @@ class ApiController extends Controller
             // Get unique API IDs
             $apiIds = array_unique($apiIds);
             
-            // Query APIs that are active and belong to user's departments
+            // Query APIs that are active and belong to user's active departments
             if (!empty($apiIds)) {
                 $apis = $query->where('is_active', true)
                              ->whereIn('_id', $apiIds)
@@ -94,14 +97,64 @@ class ApiController extends Controller
         }));
     }
 
-    public function show(Api $api)
+    public function show(Request $request, Api $api)
     {
-        // Check if API is inactive and user is not admin
-        if (!$api->is_active && Auth::user()->role !== 'admin') {
-            abort(404);
+        Log::info('ApiController show method started', [
+            'request_id' => uniqid(),
+            'path' => $request->path(),
+            'method' => $request->method(),
+            'is_xhr' => $request->ajax(),
+            'wants_json' => $request->wantsJson(),
+            'accept_header' => $request->header('Accept'),
+            'is_inertia' => $request->header('X-Inertia') ? true : false,
+            'content_type' => $request->header('Content-Type'),
+            'has_error_attr' => $request->attributes->has('api_access_error')
+        ]);
+
+        $user = Auth::user();
+        
+        // Check user access through active departments if not admin
+        if ($user->role !== 'admin') {
+            $hasAccess = Department::where('is_active', true)
+                ->where('user_assignments', 'elemMatch', ['userId' => $user->_id])
+                ->whereRaw(['api_assignments' => ['$elemMatch' => ['id' => $api->_id]]])
+                ->exists();
+                
+            if (!$hasAccess) {
+                Log::warning('API access denied - no active department access', [
+                    'user_id' => $user->_id,
+                    'api_id' => $api->_id
+                ]);
+                
+                return Inertia::render('Error/Forbidden', [
+                    'status' => 403,
+                    'message' => 'You do not have access to this API through any active departments.'
+                ]);
+            }
         }
 
+        // Check if there's an access error passed from middleware
+        if ($request->attributes->has('api_access_error')) {
+            $error = $request->attributes->get('api_access_error');
+            Log::info('Handling api_access_error in controller', [
+                'error' => $error,
+                'response_type' => 'inertia'
+            ]);
+
+            return Inertia::render('Error/Forbidden', [
+                'status' => $error['status'],
+                'message' => $error['message']
+            ]);
+        }
+
+        // Proceed with normal API show logic
         $api->load(['createdBy', 'endpoints.parameters']);
+
+        Log::info('Rendering API show page', [
+            'api_id' => $api->_id,
+            'api_name' => $api->name,
+            'endpoint_count' => $api->endpoints->count()
+        ]);
 
         $apiData = [
             'id' => $api->_id,
