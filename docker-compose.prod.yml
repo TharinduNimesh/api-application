@@ -1,0 +1,48 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.prod
+    container_name: api-app
+    restart: unless-stopped
+    ports:
+      - "9000:80"
+    depends_on:
+      - mongo
+    environment:
+      - VITE_MANIFEST=true
+    #   - APP_ENV=production
+    #   - APP_DEBUG=false
+    #   - DB_CONNECTION=mongodb
+    #   - DB_DSN=mongodb://api_user:${MONGO_PASSWORD}@mongo:27017/api_management
+    #   - DB_DATABASE=api_management
+    volumes:
+      - app_storage:/var/www/html/storage
+    networks:
+      - app_network
+
+  mongo:
+    image: mongo:latest
+    container_name: api-mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=${DB_USERNAME}
+      - MONGO_INITDB_ROOT_PASSWORD=${DB_PASSWORD}
+      - MONGO_INITDB_DATABASE=api_management
+    volumes:
+      - mongo_data:/data/db
+      - ./docker/mongo/init-mongo.js:/docker-entrypoint-initdb.d/init-mongo.js:ro
+    networks:
+      - app_network
+
+networks:
+  app_network:
+    driver: bridge
+
+volumes:
+  app_storage:
+    driver: local
+  mongo_data:
+    driver: local
