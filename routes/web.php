@@ -5,6 +5,7 @@ use App\Http\Controllers\ApiImportController;
 use App\Http\Controllers\DepartmentController;
 use App\Http\Controllers\RequestController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\ApiStatsController;
 use App\Models\Api;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
@@ -98,6 +99,7 @@ Route::middleware('auth')->group(function () {
     Route::delete('/profile', [ProfileController::class, 'destroy'])
         ->name('profile.destroy');
     Route::post('/api/import', [ApiImportController::class, 'import'])->name('api.import');
+    Route::get('/api/stats/{apiId}', [ApiStatsController::class, 'getStats'])->name('api.stats');
 });
 
 require __DIR__ . '/auth.php';

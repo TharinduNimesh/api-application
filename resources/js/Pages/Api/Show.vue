@@ -52,7 +52,7 @@ const handleBack = () => {
                   <ApiDetails :api="api" />
                 </div>
                 <div class="lg:col-span-1">
-                  <ApiStats />
+                  <ApiStats :apiId="api.id" />
                 </div>
               </div>
             </TabPanel>

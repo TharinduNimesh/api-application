@@ -3,28 +3,20 @@
 namespace App\Http\Controllers;
 
 use App\Models\Api;
+use App\Models\ApiUsage;
 use GuzzleHttp\Client;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 
 class RequestController extends Controller
 {
-    /**
-     * @var array Array of file streams that need to be closed after request
-     */
     private array $fileStreams = [];
 
-    /**
-     * Process and execute an API endpoint call
-     *
-     * @param Request $request The incoming request
-     * @param Api $api The API model instance
-     * @return JsonResponse
-     */
     public function callEndpoint(Request $request, Api $api): JsonResponse
     {
-        // Check if there's an access error passed from middleware
+        // Check for middleware access errors
         if ($request->attributes->has('api_access_error')) {
             $error = $request->attributes->get('api_access_error');
             return response()->json([
@@ -33,47 +25,128 @@ class RequestController extends Controller
             ], $error['status']);
         }
 
-        Log::debug('Starting API endpoint call', [
-            'api_id' => $api->_id,
-            'request_data' => $request->all()
-        ]);
+        try {
+            $request->validate([
+                'endpoint_id' => 'required|string',
+                'data' => 'nullable|array'
+            ]);
 
-        $request->validate([
-            'endpoint_id' => 'required|string',
-            'data' => 'nullable|array'
-        ]);
+            $endpoint = $api->endpoints()->where('_id', $request->input('endpoint_id'))->first();
+            if (!$endpoint) {
+                return response()->json([
+                    'status' => 404,
+                    'error' => 'Endpoint not found'
+                ], 200);
+            }
 
-        $endpoint = $this->getAndValidateEndpoint($api, $request->input('endpoint_id'));
-        if (!$endpoint) {
+            $data = $request->input('data', []);
+            $processedPath = $this->processPathParameters($endpoint, $data);
+            
+            if (is_array($processedPath) && isset($processedPath['error'])) {
+                return response()->json([
+                    'status' => 422,
+                    'error' => $processedPath['error']
+                ], 200);
+            }
+
+            $url = rtrim($api->baseUrl, '/') . '/' . ltrim($processedPath, '/');
+            return $this->executeRequest($endpoint, $url, $data);
+
+        } catch (\Exception $e) {
+            Log::error('Error processing API request', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
             return response()->json([
-                'status' => 404,
-                'error' => 'Endpoint not found'
+                'status' => 500,
+                'error' => 'Internal server error: ' . $e->getMessage()
             ], 200);
         }
-
-        $data = $request->input('data', []);
-        $processedPath = $this->processPathParameters($endpoint, $data);
-        
-        if (is_array($processedPath) && isset($processedPath['error'])) {
-            return response()->json([
-                'status' => 422,
-                'error' => $processedPath['error']
-            ], 200);
-        }
-
-        $url = rtrim($api->baseUrl, '/') . '/' . ltrim($processedPath, '/');
-        Log::debug('Prepared API URL', ['url' => $url]);
-
-        return $this->executeRequest($endpoint, $url, $data);
     }
 
-    /**
-     * Get and validate the endpoint exists
-     *
-     * @param Api $api The API model instance
-     * @param string $endpointId The endpoint ID to find
-     * @return mixed The endpoint or null if not found
-     */
+    private function executeRequest($endpoint, string $url, array $data): JsonResponse
+    {
+        $startTime = microtime(true);
+        $urlParts = parse_url($url);
+        $clientConfig = [];
+        
+        if (isset($urlParts['scheme']) && $urlParts['scheme'] === 'http') {
+            Log::warning('Making insecure HTTP request', ['url' => $url]);
+            $clientConfig['verify'] = false;
+        }
+    
+        try {
+            $client = new Client($clientConfig);
+            $options = $this->prepareRequestOptions($endpoint, $data);
+            
+            Log::debug('Making API request', [
+                'method' => $endpoint->method,
+                'url' => $url,
+                'options' => $options
+            ]);
+
+            $response = $client->request($endpoint->method, $url, $options);
+            $content = $response->getBody()->getContents();
+            $decoded = json_decode($content, true);
+            $responseTime = (microtime(true) - $startTime) * 1000;
+            $statusCode = $response->getStatusCode();
+
+            // Track API usage - consider it successful only for 2xx status codes
+            ApiUsage::create([
+                'api_id' => $endpoint->api_id,
+                'endpoint_id' => $endpoint->_id,
+                'user_id' => Auth::id(),
+                'timestamp' => now(),
+                'response_time' => round($responseTime),
+                'status_code' => $statusCode,
+                'is_success' => $statusCode >= 200 && $statusCode < 300,
+                'error_message' => $statusCode >= 400 ? 'HTTP ' . $statusCode : null,
+                'request_method' => $endpoint->method,
+                'request_path' => $endpoint->path
+            ]);
+
+            return response()->json([
+                'status' => $statusCode,
+                'data' => $decoded ?? $content,
+            ], 200);
+
+        } catch (\GuzzleHttp\Exception\RequestException $e) {
+            $responseTime = (microtime(true) - $startTime) * 1000;
+            $statusCode = $e->hasResponse() ? $e->getResponse()->getStatusCode() : 500;
+            
+            // Track failed API usage
+            ApiUsage::create([
+                'api_id' => $endpoint->api_id,
+                'endpoint_id' => $endpoint->_id,
+                'user_id' => Auth::id(),
+                'timestamp' => now(),
+                'response_time' => round($responseTime),
+                'status_code' => $statusCode,
+                'is_success' => false,
+                'error_message' => $e->getMessage(),
+                'request_method' => $endpoint->method,
+                'request_path' => $endpoint->path
+            ]);
+
+            if ($e->hasResponse()) {
+                $responseBody = $e->getResponse()->getBody()->getContents();
+                return response()->json([
+                    'status' => $statusCode,
+                    'error' => 'Request failed',
+                    'response' => json_decode($responseBody, true) ?? $responseBody,
+                ], 200);
+            }
+
+            return response()->json([
+                'status' => 500,
+                'error' => $e->getMessage()
+            ], 200);
+        } finally {
+            $this->closeFileStreams();
+        }
+    }
+
     private function getAndValidateEndpoint(Api $api, string $endpointId)
     {
         $endpoint = $api->endpoints()->where('_id', $endpointId)->first();
@@ -91,13 +164,6 @@ class RequestController extends Controller
         return $endpoint;
     }
 
-    /**
-     * Process path parameters and replace placeholders
-     *
-     * @param mixed $endpoint The endpoint model instance
-     * @param array $data The request data
-     * @return string|array The processed path or error array
-     */
     private function processPathParameters($endpoint, array &$data)
     {
         $path = $endpoint->path;
@@ -117,13 +183,6 @@ class RequestController extends Controller
         return $path;
     }
 
-    /**
-     * Prepare request options based on endpoint type and parameters
-     *
-     * @param mixed $endpoint The endpoint model instance
-     * @param array $data The request data
-     * @return array The prepared request options
-     */
     private function prepareRequestOptions($endpoint, array $data): array
     {
         $options = [
@@ -147,19 +206,11 @@ class RequestController extends Controller
         return $options;
     }
 
-    /**
-     * Prepare multipart form data for file uploads
-     *
-     * @param mixed $fileParams Collection of file parameters
-     * @param array $data The request data
-     * @return array The prepared multipart data
-     */
     private function prepareMultipartData($fileParams, array $data): array
     {
         $multipart = [];
         $this->fileStreams = [];
 
-        // Add non-file fields
         foreach ($data as $key => $value) {
             if (!$fileParams->where('name', $key)->count()) {
                 $multipart[] = [
@@ -169,7 +220,6 @@ class RequestController extends Controller
             }
         }
 
-        // Process file fields
         foreach ($fileParams as $param) {
             $fileData = $data[$param->name] ?? null;
             if ($fileData) {
@@ -180,13 +230,6 @@ class RequestController extends Controller
         return $multipart;
     }
 
-    /**
-     * Process file data and add to multipart array
-     *
-     * @param array $multipart Reference to multipart array
-     * @param mixed $param Parameter model instance
-     * @param mixed $fileData File data to process
-     */
     private function processFileData(array &$multipart, $param, $fileData): void
     {
         if ($param->fileConfig['multiple'] && is_array($fileData)) {
@@ -198,13 +241,6 @@ class RequestController extends Controller
         }
     }
 
-    /**
-     * Add a file to the multipart array
-     *
-     * @param array $multipart Reference to multipart array
-     * @param string $name Parameter name
-     * @param mixed $file File data
-     */
     private function addFileToMultipart(array &$multipart, string $name, $file): void
     {
         try {
@@ -225,14 +261,6 @@ class RequestController extends Controller
         }
     }
 
-    /**
-     * Add a file stream to the multipart array
-     *
-     * @param array $multipart Reference to multipart array
-     * @param string $name Parameter name
-     * @param resource $stream File stream
-     * @param string $filename Original filename
-     */
     private function addStreamToMultipart(array &$multipart, string $name, $stream, string $filename): void
     {
         if ($stream === false) {
@@ -246,13 +274,6 @@ class RequestController extends Controller
         ];
     }
 
-    /**
-     * Handle blob data from request
-     *
-     * @param array $multipart Reference to multipart array
-     * @param string $name Parameter name
-     * @param array $fileData File data containing blob
-     */
     private function handleBlobData(array &$multipart, string $name, array $fileData): void
     {
         $blobContent = file_get_contents('php://input');
@@ -270,108 +291,6 @@ class RequestController extends Controller
         ];
     }
 
-    /**
-     * Execute the HTTP request to the external API
-     *
-     * @param mixed $endpoint The endpoint model instance
-     * @param string $url The full URL to call
-     * @param array $data The request data
-     * @return JsonResponse
-     */
-    private function executeRequest($endpoint, string $url, array $data): JsonResponse
-    {
-        $urlParts = parse_url($url);
-        $clientConfig = [];
-        
-        // Only disable SSL verification for explicitly defined HTTP URLs
-        if (isset($urlParts['scheme']) && $urlParts['scheme'] === 'http') {
-            Log::warning('Making insecure HTTP request', ['url' => $url]);
-            $clientConfig['verify'] = false;
-        }
-    
-        $client = new Client($clientConfig);
-        try {
-            $options = $this->prepareRequestOptions($endpoint, $data);
-
-            Log::debug('Making API request', [
-                'method' => $endpoint->method,
-                'url' => $url,
-                'options' => $options,
-                'protocol' => $urlParts['scheme'] ?? 'unknown'
-            ]);
-
-            $response = $client->request($endpoint->method, $url, $options);
-            $content = $response->getBody()->getContents();
-            $decoded = json_decode($content, true);
-
-            Log::debug('API request successful', [
-                'status_code' => $response->getStatusCode()
-            ]);
-
-            return response()->json([
-                'status' => $response->getStatusCode(),
-                'data' => $decoded ?? $content,
-            ], 200);
-        } catch (\GuzzleHttp\Exception\RequestException $e) {
-            return $this->handleRequestException($e);
-        } catch (\Exception $e) {
-            return $this->handleGeneralException($e);
-        } finally {
-            $this->closeFileStreams();
-        }
-    }
-
-    /**
-     * Handle Guzzle request exceptions
-     *
-     * @param \GuzzleHttp\Exception\RequestException $e
-     * @return JsonResponse
-     */
-    private function handleRequestException(\GuzzleHttp\Exception\RequestException $e): JsonResponse
-    {
-        Log::error('Guzzle request exception', [
-            'message' => $e->getMessage(),
-            'has_response' => $e->hasResponse()
-        ]);
-
-        if ($e->hasResponse()) {
-            $responseBody = $e->getResponse()->getBody()->getContents();
-            $statusCode = $e->getResponse()->getStatusCode();
-            return response()->json([
-                'status' => $statusCode,
-                'error' => 'Request failed',
-                'response' => json_decode($responseBody, true) ?? $responseBody,
-            ], 200);
-        }
-
-        return response()->json([
-            'status' => 500,
-            'error' => $e->getMessage()
-        ], 200);
-    }
-
-    /**
-     * Handle general exceptions
-     *
-     * @param \Exception $e
-     * @return JsonResponse
-     */
-    private function handleGeneralException(\Exception $e): JsonResponse
-    {
-        Log::error('Unexpected error in API call', [
-            'message' => $e->getMessage(),
-            'trace' => $e->getTraceAsString()
-        ]);
-
-        return response()->json([
-            'status' => 500,
-            'error' => $e->getMessage()
-        ], 200);
-    }
-
-    /**
-     * Close all opened file streams
-     */
     private function closeFileStreams(): void
     {
         if (isset($this->fileStreams)) {
