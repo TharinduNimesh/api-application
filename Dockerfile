@@ -1,120 +1,59 @@
-# Stage 1: Build dependencies
-FROM php:8.3-apache as builder
+# Used for prod build.
+FROM php:8.3-fpm as php
 
-# Install system dependencies and PHP extensions
-RUN apt-get update && apt-get install -y \
-    git \
-    zip \
-    unzip \
-    libzip-dev \
-    curl \
-    libcurl4-openssl-dev \
-    pkg-config \
-    libssl-dev \
-    && docker-php-ext-install pdo_mysql bcmath zip pcntl \
-    && pecl install mongodb \
-    && docker-php-ext-enable mongodb \
-    && curl -fsSL https://deb.nodesource.com/setup_lts.x | bash - \
-    && apt-get install -y nodejs \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+# Set environment variables
+ENV PHP_OPCACHE_ENABLE=1
+ENV PHP_OPCACHE_ENABLE_CLI=0
+ENV PHP_OPCACHE_VALIDATE_TIMESTAMPS=0
+ENV PHP_OPCACHE_REVALIDATE_FREQ=0
 
-# Install Composer
+# Install dependencies.
+RUN apt-get update && apt-get install -y unzip libpq-dev libcurl4-gnutls-dev nginx libonig-dev \
+    openssl ca-certificates
+
+# Install MongoDB PHP extension with SSL support
+RUN pecl install mongodb \
+    && docker-php-ext-enable mongodb
+
+# Install PHP extensions including OpenSSL
+RUN docker-php-ext-install bcmath curl opcache mbstring
+
+# Copy composer executable.
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
-# Set working directory
+# Copy configuration files.
+COPY ./docker/php/php.ini /usr/local/etc/php/php.ini
+COPY ./docker/php/php-fpm.conf /usr/local/etc/php-fpm.d/www.conf
+COPY ./docker/nginx/nginx.conf /etc/nginx/nginx.conf
+
+# Set working directory to /var/www.
 WORKDIR /var/www
 
-# Create necessary directories and set permissions
-RUN mkdir -p \
-    storage/framework/cache \
-    storage/framework/sessions \
-    storage/framework/testing \
-    storage/framework/views \
-    bootstrap/cache \
-    && chmod -R 775 storage bootstrap/cache
+# Copy files from current folder to container current folder (set in workdir).
+COPY --chown=www-data:www-data . .
 
-# Copy the entire application first
-COPY . .
+# Create laravel caching folders.
+RUN mkdir -p /var/www/storage/framework
+RUN mkdir -p /var/www/storage/framework/cache
+RUN mkdir -p /var/www/storage/framework/testing
+RUN mkdir -p /var/www/storage/framework/sessions
+RUN mkdir -p /var/www/storage/framework/views
 
-# Install Composer dependencies and run optimization
-RUN composer install \
-    --no-dev \
-    --no-interaction \
-    --no-progress \
-    && composer dump-autoload -o
+# Fix files ownership.
+RUN chown -R www-data /var/www/storage
+RUN chown -R www-data /var/www/storage/framework
+RUN chown -R www-data /var/www/storage/framework/sessions
 
-# Install npm dependencies and build assets
-RUN npm ci
+# Set correct permission.
+RUN chmod -R 755 /var/www/storage
+RUN chmod -R 755 /var/www/storage/logs
+RUN chmod -R 755 /var/www/storage/framework
+RUN chmod -R 755 /var/www/storage/framework/sessions
+RUN chmod -R 755 /var/www/bootstrap
 
-# Generate app key if not set
-RUN php artisan key:generate
+# Adjust user permission & group
+RUN usermod --uid 1000 www-data
+RUN groupmod --gid 1001 www-data
 
-# Run Laravel optimization commands
-RUN php artisan config:cache \
-    && php artisan event:cache \
-    && php artisan route:cache \
-    && php artisan view:cache \
-    && php artisan optimize
-
-# Stage 2: Final production image
-FROM php:8.3-apache
-
-# Install production PHP extensions
-RUN apt-get update && apt-get install -y \
-    libzip-dev \
-    libcurl4-openssl-dev \
-    pkg-config \
-    libssl-dev \
-    && docker-php-ext-install pdo_mysql bcmath zip pcntl \
-    && pecl install mongodb \
-    && docker-php-ext-enable mongodb \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
-
-# Set working directory
-WORKDIR /var/www
-
-# Create non-root user
-RUN useradd --create-home --uid 1000 laravel
-
-# Create necessary directories
-RUN mkdir -p \
-    storage/framework/cache \
-    storage/framework/sessions \
-    storage/framework/testing \
-    storage/framework/views \
-    bootstrap/cache
-
-# Copy application from builder
-COPY --from=builder --chown=laravel:laravel /var/www/vendor ./vendor
-COPY --from=builder --chown=laravel:laravel /var/www/public ./public
-COPY --from=builder --chown=laravel:laravel /var/www/storage ./storage
-COPY --from=builder --chown=laravel:laravel /var/www/bootstrap ./bootstrap
-COPY --from=builder --chown=laravel:laravel /var/www/config ./config
-COPY --from=builder --chown=laravel:laravel /var/www/database ./database
-COPY --from=builder --chown=laravel:laravel /var/www/routes ./routes
-COPY --from=builder --chown=laravel:laravel /var/www/app ./app
-COPY --from=builder --chown=laravel:laravel /var/www/artisan .
-
-# Copy cached files from builder
-COPY --from=builder --chown=laravel:laravel /var/www/bootstrap/cache/*.php ./bootstrap/cache/
-COPY --from=builder --chown=laravel:laravel /var/www/storage/framework/views/*.php ./storage/framework/views/
-
-# Copy environment file if it exists
-COPY --from=builder --chown=laravel:laravel /var/www/.env.example ./.env.example
-
-# Copy Apache configuration
-COPY docker/apache/000-default.conf /etc/apache2/sites-available/000-default.conf
-RUN a2enmod rewrite
-
-# Set permissions
-RUN chown -R laravel:laravel /var/www \
-    && chmod -R 775 storage bootstrap/cache public
-
-# Switch to non-root user
-USER laravel
-
-EXPOSE 80
-
-CMD ["apache2-foreground"]
+# Run the entrypoint file.
+ENTRYPOINT [ "docker/entrypoint.sh" ]

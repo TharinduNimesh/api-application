@@ -1,36 +1,40 @@
 services:
-  app:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: laravel-app
-    restart: unless-stopped
-    volumes:
-      - ./app:/var/www/app
-      - ./config:/var/www/config
-      - ./resources:/var/www/resources
-      - ./routes:/var/www/routes
-      - ./storage:/var/www/storage
-      - ./tests:/var/www/tests
-    ports:
-      - "8080:80"
-    networks:
-      - api-network
+    api:
+        container_name: api
+        build:
+            context: .
+            target: php
+            args:
+                - APP_ENV=${APP_ENV}
+        environment:
+            - APP_ENV=${APP_ENV}
+        working_dir: /var/www
+        volumes:
+            - ./:/var/www
+        ports:
+            - 9000:8080
+        depends_on:
+            - mongodb
+            - redis
 
-  db:
-    image: mongo:latest
-    container_name: laravel-db
-    restart: unless-stopped
-    environment:
-      - MONGO_INITDB_ROOT_USERNAME=${DB_USERNAME}
-      - MONGO_INITDB_ROOT_PASSWORD=${DB_PASSWORD}
-    ports:
-      - "27017:27017"
-    volumes:
-      - ./data:/data/db
-    networks:
-      - api-network
-
-networks:
-  api-network:
-    driver: bridge
+    mongodb:
+        container_name: mongodb
+        image: mongo:latest
+        ports:
+            - 27017:27017
+        environment:
+            - MONGO_INITDB_ROOT_USERNAME=admin
+            - MONGO_INITDB_ROOT_PASSWORD=GlKjo1ujOEa4TXX
+            - MONGO_INITDB_DATABASE=api_db
+        volumes:
+            - mongodb-data:/data/db
+            
+    redis:
+        container_name: redis
+        image: redis:alpine
+        command: redis-server --appendonly yes --requirepass "secret"
+        ports:
+            - 6380:6379
+            
+volumes:
+    mongodb-data: ~
