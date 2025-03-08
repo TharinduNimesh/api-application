@@ -9,14 +9,14 @@ ENV PHP_OPCACHE_REVALIDATE_FREQ=0
 
 # Install dependencies.
 RUN apt-get update && apt-get install -y unzip libpq-dev libcurl4-gnutls-dev nginx libonig-dev \
-    openssl ca-certificates
+    openssl libssl-dev
 
-# Install MongoDB PHP extension with SSL support
+# Install MongoDB PHP extension
 RUN pecl install mongodb \
     && docker-php-ext-enable mongodb
 
 # Install PHP extensions including OpenSSL
-RUN docker-php-ext-install bcmath curl opcache mbstring
+RUN docker-php-ext-install bcmath curl opcache mbstring openssl
 
 # Copy composer executable.
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
@@ -43,12 +43,14 @@ RUN mkdir -p /var/www/storage/framework/views
 RUN chown -R www-data /var/www/storage
 RUN chown -R www-data /var/www/storage/framework
 RUN chown -R www-data /var/www/storage/framework/sessions
+RUN chown -R www-data /var/www/storage/framework/views  # Explicitly set ownership for views directory
 
 # Set correct permission.
 RUN chmod -R 755 /var/www/storage
-RUN chmod -R 755 /var/www/storage/logs
-RUN chmod -R 755 /var/www/storage/framework
-RUN chmod -R 755 /var/www/storage/framework/sessions
+RUN chmod -R 775 /var/www/storage/logs  # More permissive for logs
+RUN chmod -R 775 /var/www/storage/framework  # More permissive for framework
+RUN chmod -R 775 /var/www/storage/framework/sessions  # More permissive for sessions
+RUN chmod -R 775 /var/www/storage/framework/views  # Explicitly set more permissive permissions for views
 RUN chmod -R 755 /var/www/bootstrap
 
 # Adjust user permission & group
