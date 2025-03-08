@@ -45,7 +45,7 @@ RUN composer install \
     && composer dump-autoload -o
 
 # Install npm dependencies and build assets
-RUN npm ci && npm run build
+RUN npm ci
 
 # Generate app key if not set
 RUN php artisan key:generate
