@@ -36,11 +36,16 @@ return Application::configure(basePath: dirname(__DIR__))
                 $statusCode = $response->getStatusCode();
                 
                 if ($statusCode === 404) {
-                    return Inertia::render('Error/NotFound', [
+                    $response = Inertia::render('Error/NotFound', [
                         'status' => $statusCode,
                         'message' => $exception->getMessage() ?: "Sorry, we couldn't find the page you're looking for."
-                    ])->toResponse($request)
-                    ->setStatusCode($statusCode);
+                    ])->toResponse($request);
+                    
+                    // Ensure Inertia headers are set
+                    $response->headers->set('X-Inertia', 'true');
+                    $response->headers->set('Vary', 'Accept');
+                    
+                    return $response->setStatusCode($statusCode);
                 }
 
                 if ($statusCode === 403) {
