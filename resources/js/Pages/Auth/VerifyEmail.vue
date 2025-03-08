@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import GuestLayout from '@/Layouts/GuestLayout.vue';
-import { Head, Link, useForm } from '@inertiajs/vue3';
+import { Head, Link, useForm, router } from '@inertiajs/vue3';
 import Button from 'primevue/button';
 
 const props = defineProps<{
@@ -12,6 +12,14 @@ const form = useForm({});
 
 const submit = () => {
     form.post(route('verification.send'));
+};
+
+const handleLogout = () => {
+    form.post(route('logout'), {
+        onSuccess: () => {
+            router.visit(route('login'));
+        },
+    });
 };
 
 const verificationLinkSent = computed(
@@ -56,8 +64,7 @@ const verificationLinkSent = computed(
                 />
 
                 <Button
-                    :href="route('logout')"
-                    method="post"
+                    @click="handleLogout"
                     severity="secondary"
                     text
                     class="w-full"
