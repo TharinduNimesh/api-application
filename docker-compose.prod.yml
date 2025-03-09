@@ -1,3 +1,5 @@
+version: '3.8'
+
 services:
   app:
     build:
@@ -6,43 +8,34 @@ services:
     container_name: api-app
     restart: unless-stopped
     ports:
-      - "9000:80"
-    depends_on:
-      - mongo
+      - "80:80"
     environment:
-      - VITE_MANIFEST=true
-    #   - APP_ENV=production
-    #   - APP_DEBUG=false
-    #   - DB_CONNECTION=mongodb
-    #   - DB_DSN=mongodb://api_user:${MONGO_PASSWORD}@mongo:27017/api_management
-    #   - DB_DATABASE=api_management
+      - APP_ENV=production
+      - MONGODB_URI=${MONGODB_URI}
     volumes:
-      - app_storage:/var/www/html/storage
+      - ./storage/logs:/var/www/html/storage/logs
     networks:
-      - app_network
+      - api_network
 
-  mongo:
+  mongodb:
     image: mongo:latest
-    container_name: api-mongo
+    container_name: api-mongodb
     restart: unless-stopped
     ports:
       - "27017:27017"
     environment:
       - MONGO_INITDB_ROOT_USERNAME=${DB_USERNAME}
       - MONGO_INITDB_ROOT_PASSWORD=${DB_PASSWORD}
-      - MONGO_INITDB_DATABASE=api_management
+      - MONGO_INITDB_DATABASE=${DB_DATABASE}
     volumes:
-      - mongo_data:/data/db
+      - mongodb_data:/data/db
       - ./docker/mongo/init-mongo.js:/docker-entrypoint-initdb.d/init-mongo.js:ro
     networks:
-      - app_network
-
-networks:
-  app_network:
-    driver: bridge
+      - api_network
 
 volumes:
-  app_storage:
-    driver: local
-  mongo_data:
-    driver: local
+  mongodb_data:
+
+networks:
+  api_network:
+    driver: bridge
