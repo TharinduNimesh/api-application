@@ -22,6 +22,9 @@ RUN pecl install mongodb \
 # Enable Apache modules
 RUN a2enmod rewrite headers
 
+# Clear cache
+RUN apt-get clean && rm -rf /var/lib/apt/lists/*
+
 # Install Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
