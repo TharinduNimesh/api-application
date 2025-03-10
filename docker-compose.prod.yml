@@ -13,6 +13,7 @@ services:
       - APP_ENV=production
     volumes:
       - ./storage/logs:/var/www/html/storage/logs
+    user: "www-data:www-data"
     networks:
       - api_network
 
