@@ -169,7 +169,7 @@ const showCreateModal = ref(false);
               class="font-medium"
               @click="showCreateModal = true"
             />
-            <CreateApiModal v-model:visible="showCreateModal" />
+            <CreateApiModal v-model:visible="showCreateModal" @refresh="fetchApis" />
           </div>
         </div>
 

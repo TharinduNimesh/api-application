@@ -13,8 +13,10 @@ class Api extends Model
     protected $fillable = [
         'name',
         'description',
+        'type',
         'baseUrl',
         'is_active',
+        'rateLimit',
         'created_by'
     ];
 

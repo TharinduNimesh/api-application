@@ -16,6 +16,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
     (e: 'update:visible', value: boolean): void
+    (e: 'refresh'): void
 }>();
 
 const onHide = () => {
@@ -113,9 +114,9 @@ const submitImport = async () => {
             life: 3000
         });
 
-        // Close modal and refresh page
+        // Close modal and emit refresh event
         emit('update:visible', false);
-        router.reload();
+        emit('refresh');
         
     } catch (error) {
         const message = axios.isAxiosError(error) 
