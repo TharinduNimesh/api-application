@@ -15,6 +15,7 @@ import Column from 'primevue/column';
 import Tag from 'primevue/tag';
 import type { Endpoint, Api } from "@/types/api";
 import axios from 'axios';
+import { v4 as uuidv4 } from 'uuid';
 
 const props = defineProps<{
   api: Api;
@@ -195,7 +196,7 @@ const handleSaveEndpoint = async () => {
       // Add new endpoint to newEndpoints array
       newEndpoints.value.push({
         ...currentEndpoint.value,
-        id: crypto.randomUUID(),
+        id: uuidv4(),
         isNew: true
       });
 
