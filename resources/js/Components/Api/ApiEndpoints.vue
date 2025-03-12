@@ -245,6 +245,8 @@ const handleDelete = async () => {
     v-if="selectedEndpoint"
     v-model:visible="drawerVisible"
     :endpoint="selectedEndpoint"
+    :api="page.props.api"
+    :isDraft="false"
   />
 
   <Dialog

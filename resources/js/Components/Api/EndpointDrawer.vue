@@ -19,6 +19,14 @@ const props = defineProps({
   visible: {
     type: Boolean,
     default: false
+  },
+  api: {
+    type: Object,
+    required: true
+  },
+  isDraft: {
+    type: Boolean,
+    default: false
   }
 });
 
@@ -38,7 +46,6 @@ const parseJsonSafely = (value) => {
 };
 
 const page = usePage();
-const apiId = page.props.api.id; // current API id from the show page
 
 const getErrorMessage = (error) => {
   const status = error.response?.status;
@@ -90,7 +97,7 @@ const getErrorMessage = (error) => {
   }
 };
 
-// Modify sendRequest method to call the backend route instead of the external API directly
+// Modify sendRequest method to handle draft APIs
 const sendRequest = async () => {
   loading.value = true;
   error.value = null;
@@ -106,18 +113,30 @@ const sendRequest = async () => {
       });
     }
 
-    // Call our backend route with API id and endpoint id
-    const result = await axios.post(route('api.call-endpoint', apiId), {
-      endpoint_id: props.endpoint.id,
-      data: processedData
-    });
+    let result;
+    
+    if (props.isDraft) {
+      // For draft APIs, send the full endpoint and API data
+      const url = route('api.test-draft-endpoint');
+      result = await axios.post(url, {
+        endpoint: props.endpoint,
+        api: props.api,
+        data: processedData
+      });
+    } else {
+      // For saved APIs, just send the endpoint_id and data
+      const url = route('api.call-endpoint', props.api.id);
+      result = await axios.post(url, {
+        endpoint_id: props.endpoint.id,
+        data: processedData
+      });
+    }
 
     response.value = result.data;
     activeTab.value = 1; // Switch to response tab
   } catch (err) {
     const errorDetails = getErrorMessage(err);
     
-    // Set error response for ResponseView component
     response.value = {
       status: errorDetails.status,
       data: {
@@ -127,7 +146,7 @@ const sendRequest = async () => {
     };
     
     error.value = errorDetails.message;
-    activeTab.value = 1; // Switch to response tab to show error
+    activeTab.value = 1;
   } finally {
     loading.value = false;
   }

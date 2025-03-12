@@ -1,13 +1,16 @@
 <script setup lang="ts">
 import type { Endpoint } from '@/types/api';
+import { computed } from 'vue';
 
-defineProps<{
+const props = defineProps<{
     endpoint: Endpoint;
+    baseUrl?: string;
 }>();
 
 const emit = defineEmits<{
     (e: 'edit'): void;
     (e: 'delete'): void;
+    (e: 'test'): void;
 }>();
 
 const getMethodColor = (method: string) => {
@@ -19,6 +22,25 @@ const getMethodColor = (method: string) => {
         default: return 'secondary';
     }
 };
+
+const canTest = computed(() => {
+    // Check if baseUrl is provided and not empty
+    if (!props.baseUrl?.trim()) {
+        return false;
+    }
+
+    // Check if endpoint has name and path
+    if (!props.endpoint.name?.trim() || !props.endpoint.path?.trim()) {
+        return false;
+    }
+
+    // Check if all required parameters have names
+    const hasInvalidRequiredParams = props.endpoint.parameters.some(
+        param => param.required && !param.name?.trim()
+    );
+
+    return !hasInvalidRequiredParams;
+});
 </script>
 
 <template>
@@ -39,6 +61,15 @@ const getMethodColor = (method: string) => {
             </div>
             
             <div class="flex items-center gap-2">
+                <Button
+                    v-if="canTest"
+                    icon="pi pi-play"
+                    @click="$emit('test')"
+                    text
+                    rounded
+                    severity="info"
+                    v-tooltip.bottom="'Test Endpoint'"
+                />
                 <Button
                     icon="pi pi-pencil"
                     @click="$emit('edit')"

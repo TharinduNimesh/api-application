@@ -88,6 +88,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::post('/{api}/call-endpoint', [RequestController::class, 'callEndpoint'])
                 ->middleware(['api.status', 'api.access', 'api.rateLimit'])
                 ->name('call-endpoint');
+                
+            // New route for testing draft (unsaved) endpoints
+            Route::post('/test-draft-endpoint', [RequestController::class, 'testDraftEndpoint'])
+                ->name('test-draft-endpoint');
         });
 });
 

@@ -36,6 +36,7 @@ const displayStatus = computed(() =>
 
 const cardClass = computed(() => ({
     'opacity-75': props.status === 'INACTIVE',
+    'border-red-200 hover:border-red-300': props.status === 'INACTIVE',
     'border-emerald-100 hover:border-emerald-300': props.status === 'ACTIVE' && props.type === 'FREE',
     'border-amber-100 hover:border-amber-300': props.status === 'ACTIVE' && props.type === 'PAID',
 }));

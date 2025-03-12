@@ -9,6 +9,7 @@ import Accordion from "primevue/accordion";
 import Textarea from "primevue/textarea";
 import EndpointEditor from "@/Components/Form/EndpointEditor.vue";
 import EndpointSummary from "@/Components/Form/EndpointSummary.vue";
+import EndpointDrawer from "@/Components/Api/EndpointDrawer.vue";
 import { v4 as uuidv4 } from "uuid";
 // Add Dialog import
 import Dialog from "primevue/dialog";
@@ -25,6 +26,9 @@ const form = ref<CreateApi>({
   endpoints: [],
 });
 
+// Add these new refs
+const showTestEndpoint = ref(false);
+const selectedEndpoint = ref<Endpoint | null>(null);
 const toast = useToast();
 const errors = ref<Record<string, string>>({});
 // Add processing ref
@@ -142,6 +146,12 @@ const handleCancelEndpoint = () => {
   showEndpointEditor.value = false;
   editingEndpointId.value = null;
 };
+
+const handleTestEndpoint = (endpoint: Endpoint) => {
+  selectedEndpoint.value = endpoint;
+  showTestEndpoint.value = true;
+};
+
 </script>
 
 <template>
@@ -149,9 +159,9 @@ const handleCancelEndpoint = () => {
 
   <AuthenticatedLayout>
     <Toast />
-    <!-- Add this line at the top level -->
 
     <div class="py-8">
+
       <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
         <div class="flex justify-between items-center mb-5">
           <div class="flex items-center gap-4">
@@ -232,6 +242,7 @@ const handleCancelEndpoint = () => {
 
           <!-- Endpoints Card -->
           <div class="bg-white p-6 rounded-xl shadow-sm">
+
             <div class="flex items-center justify-between mb-4">
               <h3 class="text-lg font-medium text-gray-900">Endpoints</h3>
               <Button
@@ -267,8 +278,10 @@ const handleCancelEndpoint = () => {
                   v-for="endpoint in form.endpoints"
                   :key="endpoint.id"
                   :endpoint="endpoint"
+                  :baseUrl="form.baseUrl"
                   @edit="handleEditEndpoint(endpoint)"
                   @delete="handleDeleteEndpoint(endpoint.id ?? '')"
+                  @test="handleTestEndpoint(endpoint)"
                 />
               </template>
             </div>
@@ -295,5 +308,16 @@ const handleCancelEndpoint = () => {
         </form>
       </div>
     </div>
+
+    <!-- Add EndpointDrawer component -->
+    <EndpointDrawer
+      v-if="selectedEndpoint"
+      :endpoint="selectedEndpoint"
+      :visible="showTestEndpoint"
+      :api="form"
+      :isDraft="true"
+      @update:visible="showTestEndpoint = $event"
+    />
+
   </AuthenticatedLayout>
 </template>

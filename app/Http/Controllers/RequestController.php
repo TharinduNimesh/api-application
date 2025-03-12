@@ -36,7 +36,7 @@ class RequestController extends Controller
                 return response()->json([
                     'status' => 404,
                     'error' => 'Endpoint not found'
-                ], 200);
+                ], 500);
             }
 
             $data = $request->input('data', []);
@@ -46,7 +46,7 @@ class RequestController extends Controller
                 return response()->json([
                     'status' => 422,
                     'error' => $processedPath['error']
-                ], 200);
+                ], 422);
             }
 
             $url = rtrim($api->baseUrl, '/') . '/' . ltrim($processedPath, '/');
@@ -65,6 +65,118 @@ class RequestController extends Controller
         }
     }
 
+
+    /**
+     * Test a draft endpoint that hasn't been saved to the database yet
+     */
+    public function testDraftEndpoint(Request $request): JsonResponse
+    {
+        try {
+            $request->validate([
+                'endpoint' => 'required|array',
+                'api' => 'required|array',
+                'data' => 'nullable|array'
+            ]);
+
+            $endpoint = (object)$request->input('endpoint');
+            $api = (object)$request->input('api');
+            $data = $request->input('data', []);
+
+            // Process the path parameters as we do for saved endpoints
+            $processedPath = $this->processPathParametersFromObject($endpoint, $data);
+            
+            if (is_array($processedPath) && isset($processedPath['error'])) {
+                return response()->json([
+                    'status' => 422,
+                    'error' => $processedPath['error']
+                ], 200);
+            }
+
+            $url = rtrim($api->baseUrl, '/') . '/' . ltrim($processedPath, '/');
+            
+            // Use executeRequestDraft which doesn't log API usage
+            return $this->executeRequestDraft($endpoint, $url, $data);
+
+        } catch (\Exception $e) {
+            Log::error('Error processing draft API request', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'status' => 500,
+                'error' => 'Internal server error: ' . $e->getMessage()
+            ], 200);
+        }
+    }
+
+    /**
+     * Execute a request for a draft endpoint without logging API usage
+     */
+    private function executeRequestDraft($endpoint, string $url, array $data): JsonResponse
+    {
+        $startTime = microtime(true);
+        $urlParts = parse_url($url);
+        $clientConfig = [];
+        
+        if (isset($urlParts['scheme']) && $urlParts['scheme'] === 'http') {
+            Log::warning('Making insecure HTTP request', ['url' => $url]);
+            $clientConfig['verify'] = false;
+        }
+    
+        try {
+            $client = new Client($clientConfig);
+            $options = $this->prepareRequestOptionsFromObject($endpoint, $data);
+            
+            Log::debug('Making draft API request', [
+                'method' => $endpoint->method,
+                'url' => $url,
+                'options' => $options
+            ]);
+
+            $response = $client->request($endpoint->method, $url, $options);
+            $content = $response->getBody()->getContents();
+            $decoded = json_decode($content, true);
+            $responseTime = (microtime(true) - $startTime) * 1000;
+            $statusCode = $response->getStatusCode();
+
+            // No API usage tracking for draft endpoints
+
+            return response()->json([
+                'status' => $statusCode,
+                'data' => $decoded ?? $content,
+                'response_time_ms' => round($responseTime),
+            ], 200);
+
+        } catch (\GuzzleHttp\Exception\RequestException $e) {
+            $responseTime = (microtime(true) - $startTime) * 1000;
+            $statusCode = $e->hasResponse() ? $e->getResponse()->getStatusCode() : 500;
+            
+            // No API usage tracking for draft endpoints
+
+            if ($e->hasResponse()) {
+                $responseBody = $e->getResponse()->getBody()->getContents();
+                return response()->json([
+                    'status' => $statusCode,
+                    'error' => 'Request failed',
+                    'response' => json_decode($responseBody, true) ?? $responseBody,
+                    'response_time_ms' => round($responseTime),
+                ], 200);
+            }
+
+            return response()->json([
+                'status' => 500,
+                'error' => $e->getMessage(),
+                'response_time_ms' => round($responseTime),
+            ], 200);
+        } finally {
+            $this->closeFileStreams();
+        }
+    }
+    
+    /**
+     * Execute request with API usage tracking for saved endpoints
+     */
     private function executeRequest($endpoint, string $url, array $data): JsonResponse
     {
         $startTime = microtime(true);
@@ -109,6 +221,7 @@ class RequestController extends Controller
             return response()->json([
                 'status' => $statusCode,
                 'data' => $decoded ?? $content,
+                'response_time_ms' => round($responseTime),
             ], 200);
 
         } catch (\GuzzleHttp\Exception\RequestException $e) {
@@ -135,16 +248,104 @@ class RequestController extends Controller
                     'status' => $statusCode,
                     'error' => 'Request failed',
                     'response' => json_decode($responseBody, true) ?? $responseBody,
+                    'response_time_ms' => round($responseTime),
                 ], 200);
             }
 
             return response()->json([
                 'status' => 500,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
+                'response_time_ms' => round($responseTime),
             ], 200);
         } finally {
             $this->closeFileStreams();
         }
+    }
+    
+    /**
+     * Process path parameters from a non-database endpoint object
+     */
+    /**
+     * Process path parameters from a non-database endpoint object.
+     *
+     * @param object $endpoint The endpoint object containing path and parameters.
+     * @param array $data The data array containing parameter values.
+     * @return string|array The processed path or an error array if a parameter is missing.
+     */
+    private function processPathParametersFromObject($endpoint, array &$data)
+    {
+        $path = $endpoint->path;
+        $parameters = $endpoint->parameters ?? [];
+        
+        foreach ($parameters as $param) {
+            $param = (object)$param;
+            if (isset($param->location) && $param->location === 'path') {
+                if (!isset($data[$param->name])) {
+                    Log::warning('Missing path parameter', ['parameter' => $param->name]);
+                    return ['error' => "Missing path parameter: {$param->name}"];
+                }
+                $path = str_replace('{' . $param->name . '}', $data[$param->name], $path);
+                unset($data[$param->name]);
+            }
+        }
+
+        return $path;
+    }
+
+    /**
+     * Prepare request options from a non-database endpoint object
+     */
+    private function prepareRequestOptionsFromObject($endpoint, array $data): array
+    {
+        $options = [
+            'headers' => [
+                'Accept' => 'application/json',
+            ]
+        ];
+
+        // Convert parameters array to collection for filtering
+        $parameters = collect($endpoint->parameters ?? []);
+        $fileParams = $parameters->where('type', 'file');
+        
+        if (in_array($endpoint->method, ['POST', 'PUT', 'PATCH'])) {
+            if ($fileParams->count() > 0) {
+                $options['multipart'] = $this->prepareMultipartDataFromObject($fileParams, $data);
+            } else {
+                $options['json'] = $data;
+            }
+        } elseif ($endpoint->method === 'GET') {
+            $options['query'] = $data;
+        }
+
+        return $options;
+    }
+
+    /**
+     * Prepare multipart data for file uploads from a non-database endpoint object
+     */
+    private function prepareMultipartDataFromObject($fileParams, array $data): array
+    {
+        $multipart = [];
+        $this->fileStreams = [];
+
+        foreach ($data as $key => $value) {
+            if (!$fileParams->where('name', $key)->count()) {
+                $multipart[] = [
+                    'name' => $key,
+                    'contents' => is_array($value) ? json_encode($value) : $value
+                ];
+            }
+        }
+
+        foreach ($fileParams as $param) {
+            $param = (object)$param;
+            $fileData = $data[$param->name] ?? null;
+            if ($fileData) {
+                $this->processFileData($multipart, $param, $fileData);
+            }
+        }
+
+        return $multipart;
     }
 
     private function getAndValidateEndpoint(Api $api, string $endpointId)
