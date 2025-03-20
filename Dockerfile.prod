@@ -48,17 +48,16 @@ WORKDIR /var/www/html
 # Copy application files
 COPY . .
 
-# Create storage structure and set permissions
-RUN mkdir -p storage/framework/{sessions,views,cache} \
-    && mkdir -p storage/logs \
-    && chown -R www-data:www-data . \
-    && chmod -R 775 storage bootstrap/cache \
-    && find storage -type d -exec chmod 775 {} \; \
-    && find storage -type f -exec chmod 664 {} \; \
-    && chmod -R ug+s storage \
-    && touch storage/logs/laravel.log \
-    && chmod 664 storage/logs/laravel.log \
-    && chown -R www-data:www-data storage
+# Set up directory permissions before running composer
+RUN mkdir -p /var/www/html/storage/logs \
+    && mkdir -p /var/www/html/storage/framework/{sessions,views,cache} \
+    && mkdir -p /var/www/html/bootstrap/cache \
+    && chown -R www-data:www-data /var/www/html \
+    && chmod -R 775 /var/www/html/storage \
+    && chmod -R 775 /var/www/html/bootstrap/cache \
+    && touch /var/www/html/storage/logs/laravel.log \
+    && chown www-data:www-data /var/www/html/storage/logs/laravel.log \
+    && chmod 664 /var/www/html/storage/logs/laravel.log
 
 # Install PHP dependencies
 RUN composer install --no-interaction --optimize-autoloader --no-dev
