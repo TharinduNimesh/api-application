@@ -21,12 +21,19 @@ RUN mkdir -p /etc/apache2/ssl && \
     openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
     -keyout /etc/apache2/ssl/server.key \
     -out /etc/apache2/ssl/server.crt \
-    -subj "/C=US/ST=State/L=City/O=Organization/CN=localhost"
-
-# Copy SSL certificates to the default locations
-RUN cp /etc/apache2/ssl/server.crt /etc/ssl/certs/ssl-cert-snakeoil.pem && \
+    -subj "/C=US/ST=State/L=City/O=Organization/CN=localhost" && \
+    # Create SSL directory if it doesn't exist
+    mkdir -p /etc/ssl/private && \
+    mkdir -p /etc/ssl/certs && \
+    # Copy certificates to the default locations
+    cp /etc/apache2/ssl/server.crt /etc/ssl/certs/ssl-cert-snakeoil.pem && \
     cp /etc/apache2/ssl/server.key /etc/ssl/private/ssl-cert-snakeoil.key && \
-    chmod 600 /etc/ssl/private/ssl-cert-snakeoil.key
+    # Set proper permissions
+    chmod 644 /etc/ssl/certs/ssl-cert-snakeoil.pem && \
+    chmod 600 /etc/ssl/private/ssl-cert-snakeoil.key && \
+    # Set proper ownership
+    chown root:root /etc/ssl/certs/ssl-cert-snakeoil.pem && \
+    chown root:ssl-cert /etc/ssl/private/ssl-cert-snakeoil.key
 
 # Install PHP extensions
 RUN pecl install mongodb \
