@@ -16,7 +16,7 @@ RUN apt-get update && apt-get install -y \
     ssl-cert \
     openssl
 
-# Generate SSL certificates and set up SSL
+# Set up SSL certificates
 RUN mkdir -p /etc/apache2/ssl && \
     openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
     -keyout /etc/apache2/ssl/server.key \
@@ -36,19 +36,13 @@ RUN pecl install mongodb \
 # Enable Apache modules
 RUN a2enmod rewrite headers ssl
 
-# Clear cache
-RUN apt-get clean && rm -rf /var/lib/apt/lists/*
-
 # Install Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
 # Set working directory
 WORKDIR /var/www/html
 
-# Copy application files
-COPY . .
-
-# Set up directory permissions before running composer
+# Create Laravel directory structure with correct permissions first
 RUN mkdir -p /var/www/html/storage/logs \
     && mkdir -p /var/www/html/storage/framework/{sessions,views,cache} \
     && mkdir -p /var/www/html/bootstrap/cache \
@@ -59,15 +53,14 @@ RUN mkdir -p /var/www/html/storage/logs \
     && chown www-data:www-data /var/www/html/storage/logs/laravel.log \
     && chmod 664 /var/www/html/storage/logs/laravel.log
 
+# Copy application files
+COPY --chown=www-data:www-data . .
+
 # Install PHP dependencies
 RUN composer install --no-interaction --optimize-autoloader --no-dev
 
 # Install and build frontend assets
 RUN npm ci && npm run build && rm -rf node_modules
-
-# Set production environment
-ENV APP_ENV=production
-ENV VITE_MANIFEST=true
 
 # Configure Apache
 COPY docker/apache/000-default.conf /etc/apache2/sites-available/000-default.conf
@@ -78,11 +71,12 @@ RUN php artisan key:generate && \
     php artisan route:cache && \
     php artisan view:cache
 
-# Change ownership to Apache user
-RUN chown -R www-data:www-data /var/www/html
+# Final permission check and fix
+RUN chown -R www-data:www-data /var/www/html \
+    && find /var/www/html/storage -type d -exec chmod 775 {} \; \
+    && find /var/www/html/storage -type f -exec chmod 664 {} \; \
+    && chmod -R 775 /var/www/html/bootstrap/cache \
+    && chmod 664 /var/www/html/storage/logs/laravel.log
 
-# Expose port
-EXPOSE 80
-
-# Start Apache
+EXPOSE 80 443
 CMD ["apache2-foreground"]

@@ -12,8 +12,8 @@ services:
       - APP_ENV=production
       - APP_DEBUG=false
     volumes:
-      - ./storage:/var/www/html/storage:cached
-      - ./bootstrap/cache:/var/www/html/bootstrap/cache:cached
+      - app-storage:/var/www/html/storage
+      - app-cache:/var/www/html/bootstrap/cache
     user: "www-data:www-data"
     networks:
       - api_network
@@ -31,7 +31,6 @@ services:
     volumes:
       - mongodb_data:/data/db
       - ./docker/mongo/init-mongo.js:/docker-entrypoint-initdb.d/init-mongo.js:ro
-      - ./storage/logs:/var/www/html/storage/logs:delegated
     healthcheck:
       test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
       interval: 10s
@@ -43,6 +42,8 @@ services:
 
 volumes:
   mongodb_data:
+  app-storage:
+  app-cache:
 
 networks:
   api_network:
