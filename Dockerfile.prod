@@ -87,29 +87,29 @@ RUN mkdir -p \
     bootstrap/cache
 
 # Copy application from builder
-COPY --from=builder --chown=laravel:laravel /var/www/vendor ./vendor
-COPY --from=builder --chown=laravel:laravel /var/www/public ./public
-COPY --from=builder --chown=laravel:laravel /var/www/storage ./storage
-COPY --from=builder --chown=laravel:laravel /var/www/bootstrap ./bootstrap
-COPY --from=builder --chown=laravel:laravel /var/www/config ./config
-COPY --from=builder --chown=laravel:laravel /var/www/database ./database
-COPY --from=builder --chown=laravel:laravel /var/www/routes ./routes
-COPY --from=builder --chown=laravel:laravel /var/www/app ./app
-COPY --from=builder --chown=laravel:laravel /var/www/artisan .
+COPY --from=builder --chown=laravel:laravel /var/www/html/vendor ./vendor
+COPY --from=builder --chown=laravel:laravel /var/www/html/public ./public
+COPY --from=builder --chown=laravel:laravel /var/www/html/storage ./storage
+COPY --from=builder --chown=laravel:laravel /var/www/html/bootstrap ./bootstrap
+COPY --from=builder --chown=laravel:laravel /var/www/html/config ./config
+COPY --from=builder --chown=laravel:laravel /var/www/html/database ./database
+COPY --from=builder --chown=laravel:laravel /var/www/html/routes ./routes
+COPY --from=builder --chown=laravel:laravel /var/www/html/app ./app
+COPY --from=builder --chown=laravel:laravel /var/www/html/artisan .
 
 # Copy cached files from builder
-COPY --from=builder --chown=laravel:laravel /var/www/bootstrap/cache/*.php ./bootstrap/cache/
-COPY --from=builder --chown=laravel:laravel /var/www/storage/framework/views/*.php ./storage/framework/views/
+COPY --from=builder --chown=laravel:laravel /var/www/html/bootstrap/cache/*.php ./bootstrap/cache/
+COPY --from=builder --chown=laravel:laravel /var/www/html/storage/framework/views/*.php ./storage/framework/views/
 
 # Copy environment file if it exists
-COPY --from=builder --chown=laravel:laravel /var/www/.env.example ./.env.example
+COPY --from=builder --chown=laravel:laravel /var/www/html/.env.example ./.env.example
 
 # Copy Apache configuration
 COPY docker/apache/000-default.conf /etc/apache2/sites-available/000-default.conf
 RUN a2enmod rewrite
 
 # Set permissions
-RUN chown -R laravel:laravel /var/www \
+RUN chown -R laravel:laravel /var/www/html \
     && chmod -R 775 storage bootstrap/cache public
 
 # Switch to non-root user
