@@ -1,72 +1,120 @@
-FROM php:8.3-apache
+# Stage 1: Build dependencies
+FROM php:8.3-apache as builder
 
-# Install system dependencies
+# Install system dependencies and PHP extensions
 RUN apt-get update && apt-get install -y \
     git \
-    curl \
-    libpng-dev \
-    libzip-dev \
     zip \
     unzip \
-    nodejs \
-    npm \
-    libonig-dev \
-    libxml2-dev \
-    libssl-dev
-
-# Install PHP extensions
-RUN pecl install mongodb \
+    libzip-dev \
+    curl \
+    libcurl4-openssl-dev \
+    pkg-config \
+    libssl-dev \
+    && docker-php-ext-install pdo_mysql bcmath zip pcntl \
+    && pecl install mongodb \
     && docker-php-ext-enable mongodb \
-    && docker-php-ext-install zip pdo_mysql
-
-# Enable Apache modules
-RUN a2enmod rewrite headers
-
-# Clear cache
-RUN apt-get clean && rm -rf /var/lib/apt/lists/*
+    && curl -fsSL https://deb.nodesource.com/setup_lts.x | bash - \
+    && apt-get install -y nodejs \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
 # Install Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
 # Set working directory
-WORKDIR /var/www/html
+WORKDIR /var/www
 
-# Copy application files
+# Create necessary directories and set permissions
+RUN mkdir -p \
+    storage/framework/cache \
+    storage/framework/sessions \
+    storage/framework/testing \
+    storage/framework/views \
+    bootstrap/cache \
+    && chmod -R 775 storage bootstrap/cache
+
+# Copy the entire application first
 COPY . .
 
-# Create storage structure and set permissions
-RUN mkdir -p storage/framework/{sessions,views,cache} \
-    && mkdir -p storage/logs \
-    && chown -R www-data:www-data . \
-    && chmod -R 775 storage bootstrap/cache \
-    && touch storage/logs/laravel.log \
-    && chmod 664 storage/logs/laravel.log \
-    && chown www-data:www-data storage/logs/laravel.log
+# Install Composer dependencies and run optimization
+RUN composer install \
+    --no-dev \
+    --no-interaction \
+    --no-progress \
+    && composer dump-autoload -o
 
-# Install PHP dependencies
-RUN composer install --no-interaction --optimize-autoloader --no-dev
+# Install npm dependencies and build assets
+RUN npm ci && npm run build
 
-# Install and build frontend assets
-RUN npm ci && npm run build && rm -rf node_modules
-
-# Set production environment
-ENV APP_ENV=production
-ENV VITE_MANIFEST=true
-
-# Configure Apache
-COPY docker/apache/000-default.conf /etc/apache2/sites-available/000-default.conf
+# Generate app key if not set
+RUN php artisan key:generate
 
 # Run Laravel optimization commands
-RUN php artisan key:generate && \
-    php artisan config:cache && \
-    php artisan route:cache && \
-    php artisan view:cache
+RUN php artisan config:cache \
+    && php artisan event:cache \
+    && php artisan route:cache \
+    && php artisan view:cache \
+    && php artisan optimize
 
-# Change ownership to Apache user
-RUN chown -R www-data:www-data /var/www/html
+# Stage 2: Final production image
+FROM php:8.3-apache
 
-# Expose port
+# Install production PHP extensions
+RUN apt-get update && apt-get install -y \
+    libzip-dev \
+    libcurl4-openssl-dev \
+    pkg-config \
+    libssl-dev \
+    && docker-php-ext-install pdo_mysql bcmath zip pcntl \
+    && pecl install mongodb \
+    && docker-php-ext-enable mongodb \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set working directory
+WORKDIR /var/www
+
+# Create non-root user
+RUN useradd --create-home --uid 1000 laravel
+
+# Create necessary directories
+RUN mkdir -p \
+    storage/framework/cache \
+    storage/framework/sessions \
+    storage/framework/testing \
+    storage/framework/views \
+    bootstrap/cache
+
+# Copy application from builder
+COPY --from=builder --chown=laravel:laravel /var/www/vendor ./vendor
+COPY --from=builder --chown=laravel:laravel /var/www/public ./public
+COPY --from=builder --chown=laravel:laravel /var/www/storage ./storage
+COPY --from=builder --chown=laravel:laravel /var/www/bootstrap ./bootstrap
+COPY --from=builder --chown=laravel:laravel /var/www/config ./config
+COPY --from=builder --chown=laravel:laravel /var/www/database ./database
+COPY --from=builder --chown=laravel:laravel /var/www/routes ./routes
+COPY --from=builder --chown=laravel:laravel /var/www/app ./app
+COPY --from=builder --chown=laravel:laravel /var/www/artisan .
+
+# Copy cached files from builder
+COPY --from=builder --chown=laravel:laravel /var/www/bootstrap/cache/*.php ./bootstrap/cache/
+COPY --from=builder --chown=laravel:laravel /var/www/storage/framework/views/*.php ./storage/framework/views/
+
+# Copy environment file if it exists
+COPY --from=builder --chown=laravel:laravel /var/www/.env.example ./.env.example
+
+# Copy Apache configuration
+COPY docker/apache/000-default.conf /etc/apache2/sites-available/000-default.conf
+RUN a2enmod rewrite
+
+# Set permissions
+RUN chown -R laravel:laravel /var/www \
+    && chmod -R 775 storage bootstrap/cache public
+
+# Switch to non-root user
+USER laravel
+
 EXPOSE 80
 
-# Start Apache
 CMD ["apache2-foreground"]
