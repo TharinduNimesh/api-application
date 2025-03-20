@@ -98,6 +98,7 @@ COPY --from=builder --chown=www-data:www-data /var/www/html/config ./config
 COPY --from=builder --chown=www-data:www-data /var/www/html/database ./database
 COPY --from=builder --chown=www-data:www-data /var/www/html/routes ./routes
 COPY --from=builder --chown=www-data:www-data /var/www/html/app ./app
+COPY --from=builder --chown=www-data:www-data /var/www/html/resources ./resources
 COPY --from=builder --chown=www-data:www-data /var/www/html/artisan .
 COPY --from=builder --chown=www-data:www-data /var/www/html/composer.json .
 COPY --from=builder --chown=www-data:www-data /var/www/html/composer.lock .
