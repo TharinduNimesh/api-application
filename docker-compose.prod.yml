@@ -13,8 +13,6 @@ services:
       - APP_DEBUG=false
     volumes:
       - ./storage/logs:/var/www/html/storage/logs
-      - /etc/ssl/private:/etc/ssl/private:ro
-      - /etc/ssl/certs:/etc/ssl/certs:ro
     user: "www-data:www-data"
     networks:
       - api_network
