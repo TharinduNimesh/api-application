@@ -11,10 +11,12 @@ services:
       - APP_ENV=production
       - APP_DEBUG=true
     volumes:
-      - ./storage/logs:/var/www/html/storage/logs
-    user: "www-data:www-data"
+      - api_logs:/var/www/html/storage/logs
     networks:
       - api_network
+    depends_on:
+      mongodb:
+        condition: service_healthy
 
   mongodb:
     image: mongo:latest
@@ -41,6 +43,8 @@ services:
 
 volumes:
   mongodb_data:
+  api_logs:
+    driver: local
 
 networks:
   api_network:

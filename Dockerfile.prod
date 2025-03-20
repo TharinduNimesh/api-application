@@ -75,45 +75,48 @@ RUN apt-get update && apt-get install -y \
 # Set working directory
 WORKDIR /var/www/html
 
-# Create non-root user
-RUN useradd --create-home --uid 1000 laravel
-
-# Create necessary directories
+# Create necessary directories with proper ownership
 RUN mkdir -p \
     storage/framework/cache \
     storage/framework/sessions \
     storage/framework/testing \
     storage/framework/views \
+    storage/logs \
     bootstrap/cache
 
+# Set proper ownership and permissions for Apache
+RUN chown -R www-data:www-data /var/www/html \
+    && chmod -R 775 storage bootstrap/cache \
+    && chmod -R 775 storage/logs
+
 # Copy application from builder
-COPY --from=builder --chown=laravel:laravel /var/www/html/vendor ./vendor
-COPY --from=builder --chown=laravel:laravel /var/www/html/public ./public
-COPY --from=builder --chown=laravel:laravel /var/www/html/storage ./storage
-COPY --from=builder --chown=laravel:laravel /var/www/html/bootstrap ./bootstrap
-COPY --from=builder --chown=laravel:laravel /var/www/html/config ./config
-COPY --from=builder --chown=laravel:laravel /var/www/html/database ./database
-COPY --from=builder --chown=laravel:laravel /var/www/html/routes ./routes
-COPY --from=builder --chown=laravel:laravel /var/www/html/app ./app
-COPY --from=builder --chown=laravel:laravel /var/www/html/artisan .
+COPY --from=builder --chown=www-data:www-data /var/www/html/vendor ./vendor
+COPY --from=builder --chown=www-data:www-data /var/www/html/public ./public
+COPY --from=builder --chown=www-data:www-data /var/www/html/storage ./storage
+COPY --from=builder --chown=www-data:www-data /var/www/html/bootstrap ./bootstrap
+COPY --from=builder --chown=www-data:www-data /var/www/html/config ./config
+COPY --from=builder --chown=www-data:www-data /var/www/html/database ./database
+COPY --from=builder --chown=www-data:www-data /var/www/html/routes ./routes
+COPY --from=builder --chown=www-data:www-data /var/www/html/app ./app
+COPY --from=builder --chown=www-data:www-data /var/www/html/artisan .
 
 # Copy cached files from builder
-COPY --from=builder --chown=laravel:laravel /var/www/html/bootstrap/cache/*.php ./bootstrap/cache/
-COPY --from=builder --chown=laravel:laravel /var/www/html/storage/framework/views/*.php ./storage/framework/views/
+COPY --from=builder --chown=www-data:www-data /var/www/html/bootstrap/cache/*.php ./bootstrap/cache/
+COPY --from=builder --chown=www-data:www-data /var/www/html/storage/framework/views/*.php ./storage/framework/views/
 
 # Copy environment file if it exists
-COPY --from=builder --chown=laravel:laravel /var/www/html/.env.example ./.env.example
+COPY --from=builder --chown=www-data:www-data /var/www/html/.env.example ./.env.example
 
 # Copy Apache configuration
 COPY docker/apache/000-default.conf /etc/apache2/sites-available/000-default.conf
 RUN a2enmod rewrite
 
-# Set permissions
-RUN chown -R laravel:laravel /var/www/html \
-    && chmod -R 775 storage bootstrap/cache public
+# Ensure storage and bootstrap cache are writable
+RUN chmod -R 775 storage bootstrap/cache \
+    && chmod -R 775 storage/logs
 
-# Switch to non-root user
-USER laravel
+# We'll run as www-data by default
+USER www-data
 
 EXPOSE 80
 
