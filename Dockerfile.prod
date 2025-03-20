@@ -12,7 +12,21 @@ RUN apt-get update && apt-get install -y \
     npm \
     libonig-dev \
     libxml2-dev \
-    libssl-dev
+    libssl-dev \
+    ssl-cert \
+    openssl
+
+# Generate SSL certificates
+RUN mkdir -p /etc/apache2/ssl && \
+    openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+    -keyout /etc/apache2/ssl/server.key \
+    -out /etc/apache2/ssl/server.crt \
+    -subj "/C=US/ST=State/L=City/O=Organization/CN=localhost"
+
+# Copy SSL certificates to the default locations
+RUN cp /etc/apache2/ssl/server.crt /etc/ssl/certs/ssl-cert-snakeoil.pem && \
+    cp /etc/apache2/ssl/server.key /etc/ssl/private/ssl-cert-snakeoil.key && \
+    chmod 600 /etc/ssl/private/ssl-cert-snakeoil.key
 
 # Install PHP extensions
 RUN pecl install mongodb \
@@ -20,7 +34,7 @@ RUN pecl install mongodb \
     && docker-php-ext-install zip pdo_mysql
 
 # Enable Apache modules
-RUN a2enmod rewrite headers
+RUN a2enmod rewrite headers ssl
 
 # Clear cache
 RUN apt-get clean && rm -rf /var/lib/apt/lists/*
