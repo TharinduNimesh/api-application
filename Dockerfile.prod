@@ -55,7 +55,8 @@ RUN mkdir -p storage/framework/{sessions,views,cache} \
     && chmod -R 775 storage bootstrap/cache \
     && touch storage/logs/laravel.log \
     && chmod 664 storage/logs/laravel.log \
-    && chown www-data:www-data storage/logs/laravel.log
+    && chown www-data:www-data storage/logs/laravel.log \
+    && chmod -R g+s storage/logs
 
 # Install PHP dependencies
 RUN composer install --no-interaction --optimize-autoloader --no-dev
