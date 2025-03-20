@@ -17,18 +17,16 @@ RUN apt-get update && apt-get install -y \
     openssl
 
 # Generate SSL certificates and set up SSL
-RUN mkdir -p /etc/ssl/private /etc/ssl/certs /etc/apache2/ssl && \
+RUN mkdir -p /etc/apache2/ssl && \
     openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
     -keyout /etc/apache2/ssl/server.key \
     -out /etc/apache2/ssl/server.crt \
-    -subj "/C=US/ST=State/L=City/O=Organization/CN=localhost" && \
-    cp /etc/apache2/ssl/server.key /etc/ssl/private/ssl-cert-snakeoil.key && \
-    cp /etc/apache2/ssl/server.crt /etc/ssl/certs/ssl-cert-snakeoil.pem && \
-    chmod 600 /etc/ssl/private/ssl-cert-snakeoil.key && \
-    chmod 644 /etc/ssl/certs/ssl-cert-snakeoil.pem && \
-    chown root:ssl-cert /etc/ssl/private/ssl-cert-snakeoil.key && \
-    chown root:root /etc/ssl/certs/ssl-cert-snakeoil.pem && \
-    adduser www-data ssl-cert
+    -subj "/C=LK/ST=Western/L=Colombo/O=Eversoft/CN=apiforge.eversoft.lk" && \
+    chmod 755 /etc/apache2/ssl && \
+    chmod 644 /etc/apache2/ssl/server.crt && \
+    chmod 644 /etc/apache2/ssl/server.key && \
+    chown -R root:www-data /etc/apache2/ssl && \
+    usermod -aG ssl-cert www-data
 
 # Install PHP extensions
 RUN pecl install mongodb \
