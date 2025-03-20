@@ -10,6 +10,11 @@ services:
     environment:
       - APP_ENV=production
       - APP_DEBUG=true
+      - DB_HOST=mongodb
+      - DB_PORT=${DB_PORT:-27018}
+      - DB_DATABASE=${DB_DATABASE}
+      - DB_USERNAME=${DB_USERNAME}
+      - DB_PASSWORD=${DB_PASSWORD}
     volumes:
       - api_logs:/var/www/html/storage/logs
     networks:
@@ -23,7 +28,7 @@ services:
     container_name: api-mongodb
     restart: unless-stopped
     ports:
-      - "${DB_PORT:-27017}:27017"
+      - "${DB_PORT:-27018}:27017"
     environment:
       - MONGO_INITDB_ROOT_USERNAME=${DB_USERNAME}
       - MONGO_INITDB_ROOT_PASSWORD=${DB_PASSWORD}
@@ -31,7 +36,6 @@ services:
     volumes:
       - mongodb_data:/data/db
       - ./docker/mongo/init-mongo.js:/docker-entrypoint-initdb.d/init-mongo.js:ro
-      - ./storage/logs:/var/www/html/storage/logs:delegated
     healthcheck:
       test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
       interval: 10s
